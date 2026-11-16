@@ -1,12 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service.js';
+import { Controller } from '@nestjs/common';
+import { EventPattern, Payload } from '@nestjs/microservices';
+import { ORDER_EVENTS } from '@repo/common';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  @EventPattern(ORDER_EVENTS.CREATED)
+  handleOrderCreated(@Payload() orderData: any) {
+    console.log('💳 [Billing Service] Received order_created event:', orderData);
+    console.log(`🧾 Generating invoice for Order ID: ${orderData.id}...`);
   }
 }

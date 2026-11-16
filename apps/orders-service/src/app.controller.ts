@@ -1,12 +1,15 @@
-import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service.js';
+import { Controller } from '@nestjs/common';
+import { MessagePattern, Payload } from '@nestjs/microservices';
+import { ORDER_PATTERNS } from '@repo/common';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  @MessagePattern(ORDER_PATTERNS.FIND_ALL)
+  getOrders(@Payload() data: any) {
+    console.log('📦 [Orders Service] Received RPC request to find all orders');
+    return [
+      { id: 'ord-101', item: 'Mechanical Keyboard', price: 120, status: 'CONFIRMED' },
+      { id: 'ord-102', item: 'Gaming Mouse', price: 60, status: 'PENDING' },
+    ];
   }
 }
