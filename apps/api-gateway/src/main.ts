@@ -4,10 +4,16 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {cors: true});
+  const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') ?? 3002;
+
+    app.enableCors({
+    origin: ['*'], // Allow all origins (you can specify specific origins if needed)
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    credentials: true, // Allows sending cookies or authorization headers
+  });
 
   // 1. Build Swagger Documentation Config
   const swaggerConfig = new DocumentBuilder()
