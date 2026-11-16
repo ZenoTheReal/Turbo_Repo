@@ -3,15 +3,20 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') ?? 3002;
+  app.use(cookieParser());
 
   app.enableCors({
-    origin: ['*'], // Allow all origins (you can specify specific origins if needed)
+    origin: [
+      'http://localhost:3000', // Next.js frontend
+      'http://localhost:3001', // Angular frontend
+    ], // Allow all origins (you can specify specific origins if needed)
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // Allows sending cookies or authorization headers
   });
@@ -24,11 +29,14 @@ async function bootstrap() {
     }),
   );
 
+  app.setGlobalPrefix('api');
+
   // 1. Build Swagger Documentation Config
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Microservices API Gateway')
     .setDescription('Central API gateway documenting endpoints for frontend services (Next.js & Angular)')
     .setVersion(configService.get<string>('API_VERSION') ?? '1.0')
+    .addBearerAuth()
     .build();
 
   // 2. Create and Mount Swagger UI
