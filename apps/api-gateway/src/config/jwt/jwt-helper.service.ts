@@ -1,29 +1,78 @@
 import { Injectable } from '@nestjs/common';
-import { JwtService, JwtSignOptions } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions, JwtVerifyOptions } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+
+export interface JwtPayload {
+    sub: string;
+    email: string;
+    role: string;
+}
+
+export interface AuthTokens {
+    accessToken: string;
+    refreshToken: string;
+}
 
 @Injectable()
 export class JwtHelperService {
-  constructor(private readonly jwtService: JwtService) {}
+    constructor(
+        private readonly jwtService: JwtService,
+        private readonly configService: ConfigService,
+    ) { }
 
-  /**
-   * Generates a signed JWT with any payload and optional sign options (e.g., custom expiresIn)
-   */
-  generateToken<T extends object>(payload: T, options?: JwtSignOptions): string {
-    return this.jwtService.sign(payload, options);
-  }
+    /**
+     * Generates both Access Token (short-lived) and Refresh Token (long-lived)
+     */
+    generateAuthTokens(payload: JwtPayload): AuthTokens {
+        // 1. Access Token (uses default secret and expiresIn from JwtModule)
+        const accessToken = this.jwtService.sign(payload);
 
-  /**
-   * Verifies a token's signature and expiration, returning the typed payload.
-   * Throws an exception if invalid or expired.
-   */
-  verifyToken<T extends object>(token: string): T {
-    return this.jwtService.verify<T>(token);
-  }
+        // 2. Refresh Token (uses separate refresh secret and longer expiration)
+        const refreshSecret = this.configService.get<string>(
+            'JWT_REFRESH_SECRET',
+            'default_refresh_secret',
+        );
+        const refreshExpiresIn = this.configService.get<string>(
+            'JWT_REFRESH_EXPIRATION',
+            '7d',
+        );
 
-  /**
-   * Decodes a token without verifying signature (useful for inspecting claims)
-   */
-  decodeToken<T extends object>(token: string): T {
-    return this.jwtService.decode(token) as T;
-  }
+        const refreshToken = this.jwtService.sign(
+            { sub: payload.sub },
+            {
+                secret: refreshSecret,
+                expiresIn: refreshExpiresIn as any,
+            },
+        );
+
+        return {
+            accessToken,
+            refreshToken,
+        };
+    }
+
+    /**
+     * Verifies the Refresh Token signature and returns its payload
+     */
+    verifyRefreshToken(token: string): { sub: string } {
+        const refreshSecret = this.configService.get<string>(
+            'JWT_REFRESH_SECRET',
+            'default_refresh_secret',
+        );
+        return this.jwtService.verify(token, { secret: refreshSecret });
+    }
+
+    /**
+     * Generic token generator for any custom needs
+     */
+    generateToken<T extends object>(payload: T, options?: JwtSignOptions): string {
+        return this.jwtService.sign(payload, options);
+    }
+
+    /**
+     * Generic token verifier
+     */
+    verifyToken<T extends object>(token: string, options?: JwtVerifyOptions): T {
+        return this.jwtService.verify<T>(token, options);
+    }
 }
