@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module.js';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,11 +10,19 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') ?? 3002;
 
-    app.enableCors({
+  app.enableCors({
     origin: ['*'], // Allow all origins (you can specify specific origins if needed)
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // Allows sending cookies or authorization headers
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Strips out properties not in the DTO
+      forbidNonWhitelisted: true, // Throws 400 error if unrecognized fields are sent
+      transform: true, // Automatically converts payloads to DTO instances
+    }),
+  );
 
   // 1. Build Swagger Documentation Config
   const swaggerConfig = new DocumentBuilder()

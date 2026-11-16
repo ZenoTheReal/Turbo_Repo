@@ -20,8 +20,8 @@ export class User {
   email: string;
 
   // Hidden by default in queries so passwords are never accidentally leaked
-  @Column({ select: false })
-  password: string;
+  @Column({ select: false , nullable: true})
+  password?: string;
 
   @ApiProperty({ example: 'John Doe' })
   @Column()
