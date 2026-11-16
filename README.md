@@ -1,159 +1,116 @@
-# Turborepo starter
+# Full-Stack Microservices Monorepo
 
-This Turborepo starter is maintained by the Turborepo core team.
+A production-grade, event-driven microservices architecture built with **Turborepo**, **NestJS**, **Next.js**, **Angular**, and **PostgreSQL (Supabase)**.
 
-## Using this example
+---
 
-Run the following command:
+## 🏛️ Architecture Overview
 
-```sh
-npx create-turbo@latest
+```
+                      ┌─────────────────────────┐     ┌─────────────────────────┐
+                      │    apps/web-fe (:3000)  │     │   apps/admin-fe (:3001) │
+                      │   Next.js 16 Storefront │     │    Angular 22 Dashboard │
+                      └────────────┬────────────┘     └────────────┬────────────┘
+                                   │                               │
+                                   │ HTTP (REST / JSON)            │ HTTP (REST / JSON)
+                                   ▼                               ▼
+                      ┌─────────────────────────────────────────────────────────┐
+                      │                 apps/api-gateway (:3002)                │
+                      │  - Public Ingress & Authentication (JWT, RBAC)          │
+                      │  - Interactive Swagger Docs: /api/docs                  │
+                      │  - Request Validation & Routing                         │
+                      └────────────────┬───────────────────────┬────────────────┘
+                                       │                       │
+                    Pattern 1: RPC     │ TCP: Port 3003        │ Pattern 2: Events
+                    (Request-Response) │ orders.findAll        │ (Fire & Forget)
+                                       ▼                       ▼
+                      ┌────────────────────────┐      ┌─────────────────────────┐
+                      │  apps/orders-service   │      │  apps/billing-service   │
+                      │  - Pure Microservice   │      │  - Pure Microservice    │
+                      │  - Internal TCP :3003  │      │  - Internal TCP :3004   │
+                      └────────────┬───────────┘      └────────────┬────────────┘
+                                   │                               │
+                                   ▼                               ▼
+                      [(       Supabase PostgreSQL (Session Pooler)            )]
 ```
 
-## What's inside?
+---
 
-This Turborepo includes the following packages/apps:
+## 📦 What's Inside?
 
-### Apps and Packages
+### Applications (`apps/`)
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `@next/eslint-plugin-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
+| Application | Framework / Technology | Port / Protocol | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`web-fe`** | **Next.js 16** (App Router, React 19) | `http://localhost:3000` | Customer-facing e-commerce storefront. |
+| **`admin-fe`** | **Angular 22** (SSR, TailwindCSS v4) | `http://localhost:3001` | Back-office management portal for sellers & admins. |
+| **`api-gateway`** | **NestJS 12** (ESM, TypeORM, Swagger) | `http://localhost:3002` | Public API Gateway. Handles auth, users table, and delegates commands. |
+| **`orders-service`** | **NestJS 12** (`@nestjs/microservices`) | TCP `127.0.0.1:3003` | Internal microservice managing order lifecycles and transactions. |
+| **`billing-service`** | **NestJS 12** (`@nestjs/microservices`) | TCP `127.0.0.1:3004` | Internal microservice reacting to order events to generate invoices. |
 
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
+### Shared Packages (`packages/`)
 
-### Utilities
+* **`@repo/common` (`packages/common`)**: Single source of truth for shared TypeScript enums (`UserRole`), message patterns (`ORDER_PATTERNS`), and events (`ORDER_EVENTS`).
+* **`@repo/ui` (`packages/ui`)**: Shared React component library.
+* **`@repo/typescript-config` (`packages/typescript-config`)**: Shared `tsconfig.json` presets.
+* **`@repo/eslint-config` (`packages/eslint-config`)**: Shared ESLint rules.
 
-This Turborepo has some additional tools already setup for you:
+---
 
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
+## 🚀 Getting Started
 
-### Build
+### 1. Prerequisites
+* **Node.js** `>= 22`
+* **Yarn** `1.21.1` (or modern Yarn via Corepack)
+* **Supabase PostgreSQL** account
 
-To build all apps and packages, run the following command:
+### 2. Installation & Building Shared Packages
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+```bash
+# 1. Install all dependencies across the monorepo
+yarn install
 
-```sh
-cd my-turborepo
-turbo build
+# 2. Build the shared @repo/common package (generates dist/)
+yarn workspace @repo/common build
 ```
 
-Without global `turbo`, use your package manager:
+---
 
-```sh
-cd my-turborepo
-npx turbo build
-yarn exec turbo build
-yarn exec turbo build
+## 💻 Running the Services
+
+### Run All Backend Services (Gateway + Microservices)
+```bash
+yarn turbo run dev --filter=api-gateway --filter=orders-service --filter=billing-service
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Run Frontends
+```bash
+# Run Next.js Customer Storefront (:3000)
+yarn turbo run dev --filter=web-fe
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo build --filter=docs
+# Run Angular Admin Dashboard (:3001)
+yarn turbo run dev --filter=admin-fe
 ```
 
-Without global `turbo`:
-
-```sh
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-yarn exec turbo build --filter=docs
+### Run Everything Simultaneously
+```bash
+yarn dev
 ```
 
-### Develop
+---
 
-To develop all apps and packages, run the following command:
+## 📑 API & Documentation
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+* **Swagger UI:** Accessible at [http://localhost:3002/api/docs](http://localhost:3002/api/docs) when `api-gateway` is running.
+* **Health Check:** `GET http://localhost:3002/`
 
-```sh
-cd my-turborepo
-turbo dev
-```
+---
 
-Without global `turbo`, use your package manager:
+## 📡 Microservice Communication Patterns
 
-```sh
-cd my-turborepo
-npx turbo dev
-yarn exec turbo dev
-yarn exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-yarn exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-yarn exec turbo login
-yarn exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-yarn exec turbo link
-yarn exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+1. **Request-Response (RPC via TCP):**
+   * Gateway sends `orders.findAll` via `client.send()`.
+   * `orders-service` responds synchronously with the order list.
+2. **Event-Driven (Pub/Sub via TCP):**
+   * When an order is placed, `orders-service` emits `orders.event.created` via `client.emit()`.
+   * `billing-service` listens via `@EventPattern()` and processes invoicing asynchronously.
