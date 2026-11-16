@@ -1,13 +1,14 @@
-// apps/api/src/users/user.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '@repo/common';
+import { Role } from './role.entity.js';
 
 @Entity('users')
 export class User {
@@ -19,21 +20,21 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  // Hidden by default in queries so passwords are never accidentally leaked
-  @Column({ select: false , nullable: true})
+  @Column({ select: false, nullable: true })
   password?: string;
 
   @ApiProperty({ example: 'John Doe' })
   @Column()
   name: string;
 
-  @ApiProperty({ enum: UserRole, example: UserRole.BUYER })
-  @Column({
-    type: 'enum',
-    enum: UserRole,
-    default: UserRole.BUYER,
-  })
-  role: UserRole;
+  // 🔑 Foreign Key relation to the 'roles' table
+  @ApiProperty({ type: () => Role })
+  @ManyToOne(() => Role, { eager: true }) // eager: true automatically loads role with user
+  @JoinColumn({ name: 'roleId' })
+  role: Role;
+
+  @Column({ nullable: true })
+  roleId: string;
 
   @CreateDateColumn()
   createdAt: Date;
