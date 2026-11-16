@@ -4,18 +4,18 @@ import {
     UnauthorizedException,
     BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcryptjs';
 import { UsersService } from '../users/users.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { UserRole } from '@repo/common';
+import { JwtHelperService } from '../config/jwt/jwt-helper.service.js';
 
 @Injectable()
 export class AuthService {
     constructor(
         private readonly usersService: UsersService,
-        private readonly jwtService: JwtService,
+          private readonly jwtHelper: JwtHelperService,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -100,6 +100,6 @@ export class AuthService {
 
     private generateToken(userId: string, email: string, role: UserRole): string {
         const payload = { sub: userId, email, role };
-        return this.jwtService.sign(payload);
+        return this.jwtHelper.generateToken(payload);
     }
 }
