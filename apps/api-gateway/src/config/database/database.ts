@@ -14,15 +14,17 @@ export class Database implements OnModuleInit, OnModuleDestroy {
       username: this.configService.get<string>('DATABASE_USER'),
       password: this.configService.get<string>('DATABASE_PASSWORD'),
       database: this.configService.get<string>('DATABASE_NAME', 'postgres'),
-      entities: [import.meta.dirname + '/../../**/*.entity{.ts,.js}'],
+      entities: [
+        import.meta.dirname + '/../../**/*.entity.ts',
+        import.meta.dirname + '/../../**/*.entity.js',
+      ],
       synchronize: this.configService.get<string>('NODE_ENV') !== 'production',
       ssl: {
-        rejectUnauthorized: false, // Required for Supabase SSL connection
+        rejectUnauthorized: false,
       },
     });
   }
 
-  // Connects when the module starts
   async onModuleInit() {
     try {
       await this.dataSource.initialize();
@@ -32,7 +34,6 @@ export class Database implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  // Gracefully closes connection when app shuts down
   async onModuleDestroy() {
     if (this.dataSource?.isInitialized) {
       await this.dataSource.destroy();
