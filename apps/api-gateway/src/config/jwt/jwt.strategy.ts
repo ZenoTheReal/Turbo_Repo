@@ -35,11 +35,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
             throw new UnauthorizedException(`Account is ${user.status.toLowerCase()}. Please contact support.`);
         }
 
+        // ❌ 3. Reject if email not verified
+        if (!user.isEmailVerified) {
+            throw new UnauthorizedException('Account email is not verified');
+        }
+
         return {
             id: user.id,
             email: user.email,
             role: user.role?.name ?? payload.role,
             status: user.status,
+            isEmailVerified: user.isEmailVerified,
         };
     }
 }

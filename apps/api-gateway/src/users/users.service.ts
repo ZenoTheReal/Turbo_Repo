@@ -47,6 +47,35 @@ export class UsersService {
     return this.userRepository.findOne({ where: { id } });
   }
 
+  async findByIdWithPassword(id: string): Promise<User | null> {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('user.id = :id', { id })
+      .getOne();
+  }
+
+  async save(user: User): Promise<User> {
+    return this.userRepository.save(user);
+  }
+
+  async updateProfile(
+    userId: string,
+    data: { name?: string; phoneNumber?: string; avatarUrl?: string },
+  ): Promise<User> {
+    const user = await this.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (data.name !== undefined) user.name = data.name;
+    if (data.phoneNumber !== undefined) user.phoneNumber = data.phoneNumber;
+    if (data.avatarUrl !== undefined) user.avatarUrl = data.avatarUrl;
+
+    return this.userRepository.save(user);
+  }
+
   // 📋 1. List all users with pagination, search, sorting & filtering
   async findAll(query: FindUsersQueryDto) {
     const page = query.page ?? 1;

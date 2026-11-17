@@ -6,6 +6,7 @@ export interface CurrentUserPayload {
     email: string;
     role: UserRole;
     status: UserStatus;
+    isEmailVerified?: boolean;
 }
 
 export const CurrentUser = createParamDecorator(

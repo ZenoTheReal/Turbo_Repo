@@ -24,6 +24,7 @@ import { CurrentUser, type CurrentUserPayload } from '../common/decorators/curre
 import { UpdateUserStatusDto } from './dto/update-user-status.dto.js';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto.js';
 import { FindUsersQueryDto } from './dto/find-users-query.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { UserRole } from '@repo/common';
 
 @ApiTags('Users')
@@ -41,6 +42,30 @@ export class UsersController {
         return {
             message: 'Profile retrieved successfully',
             user,
+        };
+    }
+
+    // 👤 Any logged-in user: Update own profile
+    @Patch('profile')
+    @ApiOperation({ summary: 'Update profile of current logged-in user' })
+    @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+    async updateProfile(
+        @CurrentUser() currentUser: CurrentUserPayload,
+        @Body() dto: UpdateProfileDto,
+    ) {
+        const updatedUser = await this.usersService.updateProfile(currentUser.id, dto);
+        return {
+            message: 'Profile updated successfully',
+            user: {
+                id: updatedUser.id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                phoneNumber: updatedUser.phoneNumber,
+                avatarUrl: updatedUser.avatarUrl,
+                status: updatedUser.status,
+                isEmailVerified: updatedUser.isEmailVerified,
+                role: updatedUser.role?.name,
+            },
         };
     }
 

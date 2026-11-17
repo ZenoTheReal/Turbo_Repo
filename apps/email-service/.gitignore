@@ -1,0 +1,19 @@
+# compiled output
+/dist
+/node_modules
+/build
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Logs
+logs
+*.log
+
+# Tests
+/coverage
+/.nyc_output
+
+# Environment
+.env
+.env.*

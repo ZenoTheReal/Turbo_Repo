@@ -42,7 +42,13 @@ async function runAdminSeed() {
     });
 
     if (existingAdmin) {
-        console.log(`  \x1b[33m- Admin user already exists: ${ADMIN_CREDENTIALS.email}\x1b[0m`);
+        if (!existingAdmin.isEmailVerified) {
+            existingAdmin.isEmailVerified = true;
+            await userRepository.save(existingAdmin);
+            console.log(`  \x1b[32m- Updated existing Admin user: set isEmailVerified = true\x1b[0m`);
+        } else {
+            console.log(`  \x1b[33m- Admin user already exists: ${ADMIN_CREDENTIALS.email}\x1b[0m`);
+        }
     } else {
         // 5. Hash the password with bcrypt
         const salt = await bcrypt.genSalt(10);
@@ -54,6 +60,7 @@ async function runAdminSeed() {
             email: ADMIN_CREDENTIALS.email,
             password: hashedPassword,
             role: adminRole,
+            isEmailVerified: true,
         });
 
         await userRepository.save(adminUser);

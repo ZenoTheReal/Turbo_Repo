@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './config/database/database.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { MicroserviceClientsModule } from './config/microservices/clients.module.js';
 
 @Module({
   imports: [
@@ -12,7 +13,11 @@ import { AuthModule } from './auth/auth.module.js';
       isGlobal: true,
       envFilePath: ['.env', 'apps/api-gateway/.env']
     }),
-    DatabaseModule, UsersModule, AuthModule],
+    DatabaseModule,
+    MicroserviceClientsModule,
+    UsersModule,
+    AuthModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -1,14 +1,33 @@
 import {
-    Controller, Post, Body, HttpCode,
-    HttpStatus, Res, Req,
+    Controller,
+    Post,
+    Patch,
+    Body,
+    HttpCode,
+    HttpStatus,
+    Res,
+    Req,
+    UseGuards,
     UnauthorizedException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+    ApiTags,
+    ApiOperation,
+    ApiResponse,
+    ApiBearerAuth,
+} from '@nestjs/swagger';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
+import { VerifyEmailOtpDto } from './dto/verify-email-otp.dto.js';
+import { ResendOtpDto } from './dto/resend-otp.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
+import { CurrentUser, type CurrentUserPayload } from '../common/decorators/current-user.decorator.js';
 
 const COOKIE_NAME = 'refreshToken';
 
@@ -25,14 +44,24 @@ const REFRESH_COOKIE_OPTIONS = {
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
+    // 📝 1. Register a new user (sends 6-digit OTP to email)
     @Post('register')
-    @ApiOperation({ summary: 'Register a new user' })
-    @ApiResponse({ status: 201, description: 'User successfully registered' })
-    async register(
-        @Body() dto: RegisterDto,
+    @ApiOperation({ summary: 'Register a new user (sends verification OTP to email)' })
+    @ApiResponse({ status: 201, description: 'User registered; verification code sent' })
+    async register(@Body() dto: RegisterDto) {
+        return this.authService.register(dto);
+    }
+
+    // ✅ 2. Verify Email OTP & receive tokens
+    @Post('verify-email')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Verify 6-digit OTP to activate account and receive JWT tokens' })
+    @ApiResponse({ status: 200, description: 'Email verified successfully; tokens issued' })
+    async verifyEmail(
+        @Body() dto: VerifyEmailOtpDto,
         @Res({ passthrough: true }) res: Response,
     ) {
-        const result = await this.authService.register(dto);
+        const result = await this.authService.verifyEmail(dto);
         // 🍪 Set HttpOnly cookie for Web
         res.cookie(COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
 
@@ -40,13 +69,23 @@ export class AuthController {
             message: result.message,
             user: result.user,
             accessToken: result.accessToken,
-            refreshToken: result.refreshToken, // For Mobile apps
+            refreshToken: result.refreshToken,
         };
     }
 
+    // 🔁 3. Resend OTP (Rate-limited with 60-second cooldown)
+    @Post('resend-otp')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Resend verification or password reset OTP' })
+    @ApiResponse({ status: 200, description: 'New verification OTP sent' })
+    async resendOtp(@Body() dto: ResendOtpDto) {
+        return this.authService.resendOtp(dto);
+    }
+
+    // 🔑 4. Log in (requires verified email)
     @Post('login')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Log in and receive accessToken + HttpOnly cookie' })
+    @ApiOperation({ summary: 'Log in with verified account' })
     @ApiResponse({ status: 200, description: 'User logged in successfully' })
     async login(
         @Body() dto: LoginDto,
@@ -60,10 +99,43 @@ export class AuthController {
             message: result.message,
             user: result.user,
             accessToken: result.accessToken,
-            refreshToken: result.refreshToken, // For Mobile apps
+            refreshToken: result.refreshToken,
         };
     }
 
+    // ❓ 5. Request Password Reset OTP
+    @Post('forgot-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Request a 6-digit password reset code sent to email' })
+    @ApiResponse({ status: 200, description: 'Reset code dispatched if account exists' })
+    async forgotPassword(@Body() dto: ForgotPasswordDto) {
+        return this.authService.forgotPassword(dto);
+    }
+
+    // 🔄 6. Reset Password with OTP
+    @Post('reset-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({ summary: 'Reset password using the 6-digit code received via email' })
+    @ApiResponse({ status: 200, description: 'Password reset successfully' })
+    async resetPassword(@Body() dto: ResetPasswordDto) {
+        return this.authService.resetPassword(dto);
+    }
+
+    // 🔒 7. Change Password (For authenticated Users & Admins)
+    @Patch('change-password')
+    @HttpCode(HttpStatus.OK)
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Change password for currently logged-in user or admin' })
+    @ApiResponse({ status: 200, description: 'Password changed successfully' })
+    async changePassword(
+        @CurrentUser() currentUser: CurrentUserPayload,
+        @Body() dto: ChangePasswordDto,
+    ) {
+        return this.authService.changePassword(currentUser.id, dto);
+    }
+
+    // 🔄 8. Exchange refresh token for fresh tokens
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Exchange refresh token for fresh tokens' })
@@ -74,16 +146,12 @@ export class AuthController {
         @Res({ passthrough: true }) res: Response,
         @Body() dto: RefreshTokenDto,
     ) {
-        // 🍪 1. Read from HttpOnly cookie (Web), or fallback to request body (Mobile / Swagger)
         const token = req.cookies?.[COOKIE_NAME] || dto?.refreshToken;
         if (!token) {
             throw new UnauthorizedException('Refresh token is required');
         }
 
-        // 2. Refresh tokens
         const tokens = await this.authService.refreshTokens({ refreshToken: token });
-
-        // 🍪 3. Rotate the cookie
         res.cookie(COOKIE_NAME, tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
 
         return {
@@ -92,6 +160,7 @@ export class AuthController {
         };
     }
 
+    // 🚪 9. Log out and clear refresh token cookie
     @Post('logout')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Log out and clear the refresh token cookie' })

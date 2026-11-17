@@ -29,6 +29,18 @@ export class User {
   @Column()
   name: string;
 
+  @ApiProperty({ example: false, default: false })
+  @Column({ type: 'boolean', default: false })
+  isEmailVerified: boolean;
+
+  @ApiProperty({ example: '+1234567890', required: false })
+  @Column({ nullable: true })
+  phoneNumber?: string;
+
+  @ApiProperty({ example: 'https://example.com/avatar.jpg', required: false })
+  @Column({ nullable: true })
+  avatarUrl?: string;
+
   @ApiProperty({ enum: UserStatus, default: UserStatus.ACTIVE })
   @Column({
     type: 'varchar',
