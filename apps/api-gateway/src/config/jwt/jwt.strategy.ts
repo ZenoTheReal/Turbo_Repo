@@ -23,19 +23,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
      * Verifies the user still exists in the database and loads their current role.
      */
     async validate(payload: JwtPayload) {
-        // 🔍 1. Query the database
         const user = await this.usersService.findById(payload.sub);
 
-        // ❌ 2. If user was deleted or does not exist, reject request immediately
-        if (!user) {
-            throw new UnauthorizedException('User account no longer exists or has been deleted');
+        // ❌ 1. Reject if deleted
+        if (!user || user.isDeleted) {
+            throw new UnauthorizedException('User account no longer exists or was deleted');
         }
 
-        // ✅ 3. Attach fresh, real-time user data to req.user
+        // ❌ 2. Reject if deactivated by Admin
+        if (user.status !== 'ACTIVE') {
+            throw new UnauthorizedException(`Account is ${user.status.toLowerCase()}. Please contact support.`);
+        }
+
         return {
             id: user.id,
             email: user.email,
-            role: user.role?.name ?? payload.role, // Live role from DB
+            role: user.role?.name ?? payload.role,
+            status: user.status,
         };
     }
 }

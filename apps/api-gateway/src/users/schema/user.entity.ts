@@ -4,10 +4,12 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserStatus } from '@repo/common';
 import { Role } from './role.entity.js';
 
 @Entity('users')
@@ -27,9 +29,23 @@ export class User {
   @Column()
   name: string;
 
-  // 🔑 Foreign Key relation to the 'roles' table
+  @ApiProperty({ enum: UserStatus, default: UserStatus.ACTIVE })
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: UserStatus.ACTIVE,
+  })
+  status: UserStatus;
+
+  @ApiProperty({ example: false, default: false })
+  @Column({ type: 'boolean', default: false })
+  isDeleted: boolean;
+
+  @DeleteDateColumn({ nullable: true })
+  deletedAt?: Date;
+
   @ApiProperty({ type: () => Role })
-  @ManyToOne(() => Role, { eager: true }) // eager: true automatically loads role with user
+  @ManyToOne(() => Role, { eager: true })
   @JoinColumn({ name: 'roleId' })
   role: Role;
 

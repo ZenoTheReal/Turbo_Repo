@@ -68,6 +68,15 @@ export class AuthService {
             throw new UnauthorizedException('Invalid email or password');
         }
 
+        // Add right after checking if user exists:
+        if (user.isDeleted) {
+            throw new UnauthorizedException('This account has been deleted');
+        }
+
+        if (user.status !== 'ACTIVE') {
+            throw new UnauthorizedException(`This account is ${user.status.toLowerCase()}. Please contact support.`);
+        }
+
         if (!user.password) {
             throw new UnauthorizedException(
                 'This account uses social login. Please sign in with your provider.',
