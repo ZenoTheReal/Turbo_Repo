@@ -46,7 +46,7 @@ export class User {
 
   @ApiProperty({ type: () => Role })
   @ManyToOne(() => Role, { eager: true })
-  @JoinColumn({ name: 'roleId' })
+  @JoinColumn({ name: 'roleId', referencedColumnName: 'id' })
   role: Role;
 
   @Column({ nullable: true })
