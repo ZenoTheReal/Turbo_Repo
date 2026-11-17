@@ -8,6 +8,7 @@ import { Database } from '../config/database/database.js';
 import { User } from './schema/user.entity.js';
 import { Role } from './schema/role.entity.js';
 import { UserRole, UserStatus } from '@repo/common';
+import { FindUsersQueryDto } from './dto/find-users-query.dto.js';
 
 @Injectable()
 export class UsersService {
@@ -46,12 +47,67 @@ export class UsersService {
     return this.userRepository.findOne({ where: { id } });
   }
 
-  // 📋 1. List all users (optionally include soft-deleted)
-  async findAll(includeDeleted = false): Promise<User[]> {
-    return this.userRepository.find({
-      where: includeDeleted ? {} : { isDeleted: false },
-      order: { createdAt: 'DESC' },
-    });
+  // 📋 1. List all users with pagination, search, sorting & filtering
+  async findAll(query: FindUsersQueryDto) {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role');
+
+    // 🗑️ If includeDeleted is true, tell TypeORM to include soft-deleted records
+    if (query.includeDeleted) {
+      qb.withDeleted();
+    }
+
+    // 🔍 Search across name and email (PostgreSQL ILIKE is case-insensitive)
+    if (query.search) {
+      qb.andWhere(
+        '(user.name ILIKE :search OR user.email ILIKE :search)',
+        { search: `%${query.search}%` },
+      );
+    }
+
+    // 🚦 Filter by status (ACTIVE, INACTIVE, SUSPENDED)
+    if (query.status) {
+      qb.andWhere('user.status = :status', { status: query.status });
+    }
+
+    // 👑 Filter by role (ADMIN, SELLER, BUYER)
+    if (query.role) {
+      qb.andWhere('role.name = :role', { role: query.role });
+    }
+
+    // ↕️ Safe column sorting
+    const allowedSortColumns: Record<string, string> = {
+      createdAt: 'user.createdAt',
+      name: 'user.name',
+      email: 'user.email',
+      status: 'user.status',
+    };
+    const sortColumn = allowedSortColumns[query.sortBy ?? 'createdAt'] ?? 'user.createdAt';
+    const sortDirection = query.sortOrder === 'ASC' ? 'ASC' : 'DESC';
+    qb.orderBy(sortColumn, sortDirection);
+
+    qb.skip(skip).take(limit);
+
+    const [data, totalItems] = await qb.getManyAndCount();
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return {
+      data,
+      meta: {
+        totalItems,
+        itemCount: data.length,
+        itemsPerPage: limit,
+        totalPages,
+        currentPage: page,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    };
   }
 
   // 🚦 2. Update user status (ACTIVE, INACTIVE, SUSPENDED)
@@ -109,7 +165,11 @@ export class UsersService {
 
   // ♻️ 5. Restore a soft-deleted user
   async restore(id: string): Promise<User> {
-    const user = await this.findById(id);
+    const user = await this.userRepository.findOne({
+      where: { id },
+      withDeleted: true, // 👈 Required so TypeORM finds the soft-deleted user!
+    });
+
     if (!user) {
       throw new NotFoundException(`User with ID '${id}' not found`);
     }

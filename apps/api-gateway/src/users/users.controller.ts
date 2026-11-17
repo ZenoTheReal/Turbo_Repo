@@ -23,6 +23,7 @@ import { Roles } from '../common/decorators/roles.decorator.js';
 import { CurrentUser, type CurrentUserPayload } from '../common/decorators/current-user.decorator.js';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto.js';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto.js';
+import { FindUsersQueryDto } from './dto/find-users-query.dto.js';
 import { UserRole } from '@repo/common';
 
 @ApiTags('Users')
@@ -47,15 +48,14 @@ export class UsersController {
     // 👑 ADMIN-ONLY ENDPOINTS BELOW
     // ==========================================
 
-    // 1. List all users
+    // 1. List all users with pagination, search, sort & filters
     @Get()
     @UseGuards(RolesGuard)
     @Roles(UserRole.ADMIN)
-    @ApiOperation({ summary: '[ADMIN] List all users' })
-    @ApiQuery({ name: 'includeDeleted', required: false, type: Boolean })
-    @ApiResponse({ status: 200, description: 'List of all users' })
-    getAllUsers(@Query('includeDeleted') includeDeleted?: string) {
-        return this.usersService.findAll(includeDeleted === 'true');
+    @ApiOperation({ summary: '[ADMIN] List all users with pagination, search, sort & filters' })
+    @ApiResponse({ status: 200, description: 'Paginated user list with metadata' })
+    getAllUsers(@Query() query: FindUsersQueryDto) {
+        return this.usersService.findAll(query);
     }
 
     // 2. Get single user by ID
