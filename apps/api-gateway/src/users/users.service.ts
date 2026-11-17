@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Database } from '../config/database/database.js';
 import { User } from './schema/user.entity.js';
 import { Role } from './schema/role.entity.js';
+import { UserRole, UserStatus } from '@repo/common';
 
 @Injectable()
 export class UsersService {
@@ -12,13 +17,6 @@ export class UsersService {
   constructor(private readonly database: Database) {
     this.userRepository = this.database.dataSource.getRepository(User);
     this.roleRepository = this.database.dataSource.getRepository(Role);
-  }
-
-  async findAll(): Promise<User[]> {
-    return this.userRepository.find({
-      where: { isDeleted: false },
-      order: { createdAt: 'DESC' },
-    });
   }
 
   // 🔍 Find role by name ('ADMIN', 'SELLER', 'BUYER')
@@ -34,7 +32,7 @@ export class UsersService {
   async findByEmail(email: string, includePassword = false): Promise<User | null> {
     const query = this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.role', 'role') // 👈 Joins the role table
+      .leftJoinAndSelect('user.role', 'role')
       .where('user.email = :email', { email });
 
     if (includePassword) {
@@ -46,5 +44,78 @@ export class UsersService {
 
   async findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } });
+  }
+
+  // 📋 1. List all users (optionally include soft-deleted)
+  async findAll(includeDeleted = false): Promise<User[]> {
+    return this.userRepository.find({
+      where: includeDeleted ? {} : { isDeleted: false },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  // 🚦 2. Update user status (ACTIVE, INACTIVE, SUSPENDED)
+  async updateStatus(id: string, status: UserStatus, currentAdminId: string): Promise<User> {
+    if (id === currentAdminId && status !== UserStatus.ACTIVE) {
+      throw new BadRequestException('You cannot deactivate your own admin account');
+    }
+
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID '${id}' not found`);
+    }
+
+    user.status = status;
+    return this.userRepository.save(user);
+  }
+
+  // 👑 3. Update user role (ADMIN, SELLER, BUYER)
+  async updateRole(id: string, roleName: UserRole, currentAdminId: string): Promise<User> {
+    if (id === currentAdminId && roleName !== UserRole.ADMIN) {
+      throw new BadRequestException('You cannot remove the ADMIN role from your own account');
+    }
+
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID '${id}' not found`);
+    }
+
+    const role = await this.findRoleByName(roleName);
+    if (!role) {
+      throw new BadRequestException(`Role '${roleName}' does not exist`);
+    }
+
+    user.role = role;
+    return this.userRepository.save(user);
+  }
+
+  // 🗑️ 4. Soft Delete a user
+  async softDelete(id: string, currentAdminId: string): Promise<{ message: string }> {
+    if (id === currentAdminId) {
+      throw new BadRequestException('You cannot delete your own admin account');
+    }
+
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID '${id}' not found`);
+    }
+
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    await this.userRepository.save(user);
+
+    return { message: `User '${user.email}' has been successfully soft-deleted` };
+  }
+
+  // ♻️ 5. Restore a soft-deleted user
+  async restore(id: string): Promise<User> {
+    const user = await this.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with ID '${id}' not found`);
+    }
+
+    user.isDeleted = false;
+    user.deletedAt = undefined;
+    return this.userRepository.save(user);
   }
 }
