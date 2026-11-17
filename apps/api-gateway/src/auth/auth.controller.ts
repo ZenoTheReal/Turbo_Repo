@@ -99,7 +99,7 @@ export class AuthController {
     logout(@Res({ passthrough: true }) res: Response) {
         res.clearCookie(COOKIE_NAME, {
             httpOnly: true,
-            path: '/auth',
+            path: '/api/auth',
         });
         return { message: 'Logged out successfully' };
     }
