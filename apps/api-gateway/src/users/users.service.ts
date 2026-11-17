@@ -14,6 +14,13 @@ export class UsersService {
     this.roleRepository = this.database.dataSource.getRepository(Role);
   }
 
+  async findAll(): Promise<User[]> {
+    return this.userRepository.find({
+      where: { isDeleted: false },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   // 🔍 Find role by name ('ADMIN', 'SELLER', 'BUYER')
   async findRoleByName(name: string): Promise<Role | null> {
     return this.roleRepository.findOne({ where: { name } });
