@@ -9,6 +9,7 @@
     "check-types": "turbo run check-types"
   },
   "devDependencies": {
+    "@types/amqplib": "^0.10.8",
     "prettier": "3.9.6",
     "turbo": "^2.11.11",
     "typescript": "7.0.2"
@@ -25,5 +26,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "amqp-connection-manager": "^5.0.1",
+    "amqplib": "^2.4.0"
+  }
 }
