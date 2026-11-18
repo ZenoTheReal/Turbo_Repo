@@ -16,4 +16,5 @@ logs
 
 # Environment
 .env
-.env.*
+.env.development.local
+.env.test.local

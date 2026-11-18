@@ -3,16 +3,23 @@ import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const host = process.env.HOST || '127.0.0.1';
-  const port = Number(process.env.PORT || 3004);
+  const rmqUrl = process.env.RABBITMQ_URL || 'amqps://hhcnxsxj:IDl1Hsm1f5f4ONF7lEChCTO_HXYgxgyn@puffin.rmq2.cloudamqp.com/hhcnxsxj';
+  const exchange = process.env.RABBITMQ_EXCHANGE || 'ecommerce_exchange';
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
-    transport: Transport.TCP,
-    options: { host, port },
+    transport: Transport.RMQ,
+    options: {
+      urls: [rmqUrl],
+      queue: 'billing_queue',
+      queueOptions: { durable: true },
+      exchange,
+      exchangeType: 'topic',
+      wildcards: true,
+    },
   });
 
   await app.listen();
-  console.log(`\x1b[36m💳 Billing Service is listening on TCP ${host}:${port}\x1b[0m`);
+  console.log('\x1b[36m💳 Billing Service connected to CloudAMQP (Topic: ecommerce_exchange)\x1b[0m');
 }
 
 await bootstrap();
