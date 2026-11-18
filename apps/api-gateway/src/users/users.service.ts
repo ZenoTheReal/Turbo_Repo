@@ -9,13 +9,17 @@ import { User } from './schema/user.entity.js';
 import { Role } from './schema/role.entity.js';
 import { UserRole, UserStatus } from '@repo/common';
 import { FindUsersQueryDto } from './dto/find-users-query.dto.js';
+import { StorageService } from '../config/storage/storage.service.js';
 
 @Injectable()
 export class UsersService {
   private userRepository: Repository<User>;
   private roleRepository: Repository<Role>;
 
-  constructor(private readonly database: Database) {
+  constructor(
+    private readonly database: Database,
+    private readonly storageService: StorageService,
+  ) {
     this.userRepository = this.database.dataSource.getRepository(User);
     this.roleRepository = this.database.dataSource.getRepository(Role);
   }
@@ -62,7 +66,7 @@ export class UsersService {
 
   async updateProfile(
     userId: string,
-    data: { name?: string; phoneNumber?: string; avatarUrl?: string },
+    data: { name?: string; phoneNumber?: string; avatarUrl?: string; avatarKey?: string },
   ): Promise<User> {
     const user = await this.findById(userId);
     if (!user) {
@@ -71,7 +75,25 @@ export class UsersService {
 
     if (data.name !== undefined) user.name = data.name;
     if (data.phoneNumber !== undefined) user.phoneNumber = data.phoneNumber;
-    if (data.avatarUrl !== undefined) user.avatarUrl = data.avatarUrl;
+
+    // 🚚 Relocate file if an avatarKey from staging (temp/) was provided
+    if (data.avatarKey && data.avatarKey.startsWith('temp/')) {
+      const fileExtension = data.avatarKey.split('.').pop() || 'jpg';
+      const destinationKey = `avatars/user-${userId}-${Date.now()}.${fileExtension}`;
+
+      // 1. Relocate in S3 (Copy from temp/ -> avatars/ and delete temp/)
+      const permanentUrl = await this.storageService.relocateFile(data.avatarKey, destinationKey);
+
+      // 2. Delete previous avatar from S3 if one already existed
+      const oldKey = this.storageService.extractKeyFromUrl(user.avatarUrl);
+      if (oldKey) {
+        await this.storageService.deleteFile(oldKey);
+      }
+
+      user.avatarUrl = permanentUrl;
+    } else if (data.avatarUrl !== undefined) {
+      user.avatarUrl = data.avatarUrl;
+    }
 
     return this.userRepository.save(user);
   }

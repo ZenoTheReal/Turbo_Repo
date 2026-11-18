@@ -6,6 +6,7 @@ import { DatabaseModule } from './config/database/database.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { MicroserviceClientsModule } from './config/microservices/clients.module.js';
+import { UploadModule } from './upload/upload.module.js';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MicroserviceClientsModule } from './config/microservices/clients.module
     MicroserviceClientsModule,
     UsersModule,
     AuthModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

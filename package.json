@@ -28,6 +28,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@aws-sdk/s3-request-presigner": "^3.1171.0",
     "amqp-connection-manager": "^5.0.1",
     "amqplib": "^2.4.0"
   }

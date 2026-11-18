@@ -1,12 +1,16 @@
 import {
     Controller,
     Get,
+    Post,
     Patch,
     Delete,
     Param,
     Body,
     Query,
     UseGuards,
+    UseInterceptors,
+    UploadedFile,
+    BadRequestException,
     ParseUUIDPipe,
 } from '@nestjs/common';
 import {
@@ -15,8 +19,12 @@ import {
     ApiResponse,
     ApiBearerAuth,
     ApiQuery,
+    ApiConsumes,
+    ApiBody,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service.js';
+import { StorageService } from '../config/storage/storage.service.js';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
@@ -32,7 +40,10 @@ import { UserRole } from '@repo/common';
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-    constructor(private readonly usersService: UsersService) { }
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly storageService: StorageService,
+    ) { }
 
     // 👤 Any logged-in user: Get own profile
     @Get('profile-details')
@@ -65,6 +76,66 @@ export class UsersController {
                 status: updatedUser.status,
                 isEmailVerified: updatedUser.isEmailVerified,
                 role: updatedUser.role?.name,
+            },
+        };
+    }
+
+    // 📸 Optional Shortcut: Upload avatar image directly in one request
+    @Post('profile/avatar')
+    @UseInterceptors(
+        FileInterceptor('file', {
+            limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+            fileFilter: (req, file, callback) => {
+                if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
+                    return callback(
+                        new BadRequestException('Only JPG, JPEG, PNG, and WEBP image files are allowed'),
+                        false,
+                    );
+                }
+                callback(null, true);
+            },
+        }),
+    )
+    @ApiOperation({ summary: 'Direct avatar upload shortcut (Max 10MB: JPG, PNG, WEBP)' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                file: {
+                    type: 'string',
+                    format: 'binary',
+                    description: 'Image file to upload as avatar',
+                },
+            },
+            required: ['file'],
+        },
+    })
+    @ApiResponse({ status: 200, description: 'Avatar uploaded and profile updated successfully' })
+    async uploadAvatar(
+        @CurrentUser() currentUser: CurrentUserPayload,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
+        if (!file) {
+            throw new BadRequestException('Avatar image file is required');
+        }
+
+        // 1. Stage in temp
+        const staged = await this.storageService.uploadTemp(file);
+
+        // 2. Relocate to permanent avatar
+        const updatedUser = await this.usersService.updateProfile(currentUser.id, {
+            avatarKey: staged.fileKey,
+        });
+
+        return {
+            message: 'Avatar uploaded and profile updated successfully',
+            avatarUrl: updatedUser.avatarUrl,
+            user: {
+                id: updatedUser.id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                avatarUrl: updatedUser.avatarUrl,
             },
         };
     }

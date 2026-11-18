@@ -18,4 +18,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  // 📸 Pass the temporary fileKey from POST /api/upload (e.g. 'temp/123-avatar.png')
+  @ApiProperty({
+    example: 'temp/123e4567-e89b-12d3-a456-426614174000-photo.png',
+    required: false,
+    description: 'The temporary fileKey returned from POST /api/upload or presigned upload',
+  })
+  @IsOptional()
+  @IsString()
+  avatarKey?: string;
 }
