@@ -3,16 +3,16 @@ import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
+  const host = process.env.HOST || '127.0.0.1';
+  const port = Number(process.env.PORT || 3004);
+
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.TCP,
-    options: {
-      host: '127.0.0.1',
-      port: 3004,
-    },
+    options: { host, port },
   });
 
   await app.listen();
-  console.log('\x1b[36m💳 Billing Service is listening on TCP port 3004\x1b[0m');
+  console.log(`\x1b[36m💳 Billing Service is listening on TCP ${host}:${port}\x1b[0m`);
 }
 
 await bootstrap();

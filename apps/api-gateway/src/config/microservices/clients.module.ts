@@ -1,37 +1,50 @@
 import { Module, Global } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SERVICES } from '@repo/common';
 
 @Global()
 @Module({
   imports: [
-    ClientsModule.register([
+    ClientsModule.registerAsync([
       {
         name: SERVICES.EMAIL,
-        transport: Transport.TCP,
-        options: {
-          host: '127.0.0.1',
-          port: 3005,
-        },
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.TCP,
+          options: {
+            host: configService.get<string>('EMAIL_SERVICE_HOST', '127.0.0.1'),
+            port: Number(configService.get<number>('EMAIL_SERVICE_PORT', 3005)),
+          },
+        }),
       },
       {
         name: SERVICES.ORDERS,
-        transport: Transport.TCP,
-        options: {
-          host: '127.0.0.1',
-          port: 3003,
-        },
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.TCP,
+          options: {
+            host: configService.get<string>('ORDERS_SERVICE_HOST', '127.0.0.1'),
+            port: Number(configService.get<number>('ORDERS_SERVICE_PORT', 3003)),
+          },
+        }),
       },
       {
         name: SERVICES.BILLING,
-        transport: Transport.TCP,
-        options: {
-          host: '127.0.0.1',
-          port: 3004,
-        },
+        imports: [ConfigModule],
+        inject: [ConfigService],
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.TCP,
+          options: {
+            host: configService.get<string>('BILLING_SERVICE_HOST', '127.0.0.1'),
+            port: Number(configService.get<number>('BILLING_SERVICE_PORT', 3004)),
+          },
+        }),
       },
     ]),
   ],
   exports: [ClientsModule],
 })
-export class MicroserviceClientsModule {}
+export class MicroserviceClientsModule { }
