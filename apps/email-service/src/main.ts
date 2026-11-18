@@ -12,6 +12,8 @@ async function bootstrap() {
       urls: [rmqUrl],
       queue: 'email_queue',
       queueOptions: { durable: true },
+      noAck: false,
+      prefetchCount: 5,
       exchange,
       exchangeType: 'topic',
       wildcards: true,

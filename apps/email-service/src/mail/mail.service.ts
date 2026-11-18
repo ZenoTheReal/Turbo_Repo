@@ -36,13 +36,22 @@ export class MailService {
       `"${this.siteName}" <${user}>`;
 
     if (user && pass && pass !== 'your-16-digit-app-password') {
+      const rateLimit = Number(this.configService.get<number>('SMTP_RATE_LIMIT', 1));
+      const rateDelta = Number(this.configService.get<number>('SMTP_RATE_DELTA', 1000)); // 1000ms = 1 sec
+
       this.transporter = nodemailer.createTransport({
         host,
         port,
         secure,
+        // 🛡️ SMTP Rate Limiting & Pooling
+        pool: true,              // Reuses persistent TLS connection (avoids repeated SSL handshakes)
+        maxConnections: 1,       // Strictly 1 connection: never triggers Google concurrent socket limit
+        maxMessages: 100,        // Cycle socket every 100 emails to prevent stale connection timeouts
+        rateLimit,               // Max emails per time delta (1 email)
+        rateDelta,               // Time window in ms (1000ms = 1 second)
         auth: { user, pass },
       });
-      this.logger.log(`SMTP Transporter initialized for ${user} (display: ${this.fromDisplay})`);
+      this.logger.log(`SMTP Transporter initialized with Rate Limiting (${rateLimit} email / ${rateDelta}ms, pool=true) for ${user}`);
     } else {
       this.logger.warn(`SMTP credentials not configured. Running in simulation mode.`);
     }
@@ -72,6 +81,7 @@ ${options.text ?? options.html}
       this.logger.log(`Email successfully delivered to ${options.to}. MessageId: ${info.messageId}`);
     } catch (error) {
       this.logger.error(`Failed to send email to ${options.to}:`, error);
+      throw error; // Rethrow so the controller catches and negative-acknowledges
     }
   }
 
