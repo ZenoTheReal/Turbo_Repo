@@ -62,6 +62,18 @@ export class StripeController {
         break;
       }
 
+      case 'checkout.session.async_payment_succeeded': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        this.logger.log(`Async payment succeeded for session: ${session.id}`);
+        break;
+      }
+
+      case 'checkout.session.async_payment_failed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        this.logger.warn(`Async payment failed for session: ${session.id}`);
+        break;
+      }
+
       default:
         this.logger.debug(`Unhandled event type: ${event.type}`);
     }

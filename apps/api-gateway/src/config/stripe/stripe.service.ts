@@ -214,6 +214,8 @@ export class StripeService implements OnModuleInit {
             'account.application.deauthorized',
             'capability.updated',
             'checkout.session.completed',
+            'checkout.session.async_payment_succeeded',
+            'checkout.session.async_payment_failed',
             'payment_intent.succeeded',
             'payment_intent.payment_failed',
           ],
