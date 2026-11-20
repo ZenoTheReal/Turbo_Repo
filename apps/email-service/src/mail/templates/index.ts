@@ -3,3 +3,5 @@ export * from './password-reset.template.js';
 export * from './welcome.template.js';
 export * from './order-confirmation.template.js';
 export * from './security-alert.template.js';
+export * from './store-approved.template.js';
+export * from './store-rejected.template.js';

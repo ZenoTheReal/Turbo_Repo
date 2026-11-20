@@ -7,6 +7,8 @@ import {
   getWelcomeTemplate,
   getOrderConfirmationTemplate,
   getSecurityAlertTemplate,
+  getStoreApprovedTemplate,
+  getStoreRejectedTemplate,
 } from './templates/index.js';
 
 export interface SendMailOptions {
@@ -116,6 +118,40 @@ ${options.text ?? options.html}
   // 5. Password Changed Security Alert
   async sendPasswordChangedAlert(email: string, name: string | undefined): Promise<void> {
     const template = getSecurityAlertTemplate({ siteName: this.siteName, name });
+    await this.sendMail({ to: email, ...template });
+  }
+
+  // 6. Storefront Approved Notification
+  async sendStoreApprovedEmail(
+    email: string,
+    name: string | undefined,
+    storeName: string,
+    subdomain: string,
+  ): Promise<void> {
+    const template = getStoreApprovedTemplate({
+      siteName: this.siteName,
+      name,
+      storeName,
+      subdomain,
+    });
+    await this.sendMail({ to: email, ...template });
+  }
+
+  // 7. Storefront Rejected Notification
+  async sendStoreRejectedEmail(
+    email: string,
+    name: string | undefined,
+    storeName: string,
+    subdomain: string,
+    reason?: string,
+  ): Promise<void> {
+    const template = getStoreRejectedTemplate({
+      siteName: this.siteName,
+      name,
+      storeName,
+      subdomain,
+      reason,
+    });
     await this.sendMail({ to: email, ...template });
   }
 }

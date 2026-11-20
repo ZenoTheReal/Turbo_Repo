@@ -84,4 +84,37 @@ export class MailController {
       await this.mailService.sendOrderConfirmationEmail(orderData);
     });
   }
+
+  @EventPattern(EMAIL_EVENTS.SEND_STORE_APPROVED)
+  async handleSendStoreApproved(
+    @Payload() data: { email: string; name?: string; storeName: string; subdomain: string },
+    @Ctx() context: any,
+  ) {
+    await this.handleMessage(context, async () => {
+      console.log('[Email Service] Event received: SEND_STORE_APPROVED for store', data.storeName);
+      await this.mailService.sendStoreApprovedEmail(
+        data.email,
+        data.name,
+        data.storeName,
+        data.subdomain,
+      );
+    });
+  }
+
+  @EventPattern(EMAIL_EVENTS.SEND_STORE_REJECTED)
+  async handleSendStoreRejected(
+    @Payload() data: { email: string; name?: string; storeName: string; subdomain: string; reason?: string },
+    @Ctx() context: any,
+  ) {
+    await this.handleMessage(context, async () => {
+      console.log('[Email Service] Event received: SEND_STORE_REJECTED for store', data.storeName);
+      await this.mailService.sendStoreRejectedEmail(
+        data.email,
+        data.name,
+        data.storeName,
+        data.subdomain,
+        data.reason,
+      );
+    });
+  }
 }

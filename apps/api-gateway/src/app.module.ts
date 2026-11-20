@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { MicroserviceClientsModule } from './config/microservices/clients.module.js';
 import { UploadModule } from './upload/upload.module.js';
 import { SettingsModule } from './settings/settings.module.js';
+import { StoresModule } from './stores/stores.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SettingsModule } from './settings/settings.module.js';
     AuthModule,
     UploadModule,
     SettingsModule,
+    StoresModule,
   ],
   controllers: [AppController],
   providers: [AppService],
