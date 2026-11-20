@@ -3,6 +3,7 @@ import {
   Post,
   Headers,
   Req,
+  Inject,
   HttpCode,
   HttpStatus,
   BadRequestException,
@@ -10,7 +11,10 @@ import {
   type RawBodyRequest,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ClientProxy } from '@nestjs/microservices';
 import type { Request } from 'express';
+import { firstValueFrom } from 'rxjs';
+import { SERVICES, ORDER_PATTERNS } from '@repo/common';
 import { StripeService } from './stripe.service.js';
 import type Stripe from 'stripe';
 
@@ -19,7 +23,10 @@ import type Stripe from 'stripe';
 export class StripeController {
   private readonly logger = new Logger(StripeController.name);
 
-  constructor(private readonly stripeService: StripeService) {}
+  constructor(
+    private readonly stripeService: StripeService,
+    @Inject(SERVICES.ORDERS) private readonly ordersClient: ClientProxy,
+  ) {}
 
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
@@ -59,6 +66,45 @@ export class StripeController {
       case 'account.application.deauthorized': {
         const application = event.data.object as Stripe.Application;
         this.logger.warn(`Stripe account application deauthorized: ${application.id}`);
+        break;
+      }
+
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const orderId = session.metadata?.orderId;
+        const paymentIntentId =
+          typeof session.payment_intent === 'string' ? session.payment_intent : undefined;
+
+        if (orderId) {
+          try {
+            await firstValueFrom(
+              this.ordersClient.send(ORDER_PATTERNS.MARK_PAID, {
+                orderId,
+                stripePaymentIntentId: paymentIntentId,
+              }),
+            );
+            this.logger.log(`Checkout session ${session.id} completed. Order ${orderId} marked PAID.`);
+          } catch (err: any) {
+            this.logger.error(`Failed to mark order ${orderId} as PAID: ${err.message}`);
+          }
+        }
+        break;
+      }
+
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const orderId = session.metadata?.orderId;
+
+        if (orderId) {
+          try {
+            await firstValueFrom(
+              this.ordersClient.send(ORDER_PATTERNS.EXPIRE_ORDER, { orderId }),
+            );
+            this.logger.log(`Checkout session ${session.id} expired. Order ${orderId} expired and stock released.`);
+          } catch (err: any) {
+            this.logger.error(`Failed to expire order ${orderId}: ${err.message}`);
+          }
+        }
         break;
       }
 

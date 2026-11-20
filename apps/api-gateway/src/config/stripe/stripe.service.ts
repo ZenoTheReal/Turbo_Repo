@@ -216,6 +216,7 @@ export class StripeService implements OnModuleInit {
             'account.application.deauthorized',
             'capability.updated',
             'checkout.session.completed',
+            'checkout.session.expired',
             'checkout.session.async_payment_succeeded',
             'checkout.session.async_payment_failed',
             'payment_intent.succeeded',
@@ -275,6 +276,7 @@ export class StripeService implements OnModuleInit {
   }
 
   /**
+   * 
    * Provisions a Stripe Express Connect account for a storefront and generates the onboarding link.
    * Utilizes idempotency keys to ensure multiple clicks do not create duplicate accounts.
    */
@@ -357,6 +359,19 @@ export class StripeService implements OnModuleInit {
         `Could not generate Stripe Express dashboard link: ${err.message}`,
       );
     }
+  }
+
+  /**
+   * Creates a Stripe Checkout Session for buyer checkout.
+   */
+  async createCheckoutSession(
+    params: Stripe.Checkout.SessionCreateParams,
+  ): Promise<Stripe.Checkout.Session> {
+    return this.client.checkout.sessions.create(params);
+  }
+
+  getClient(): Stripe {
+    return this.client;
   }
 
   /**

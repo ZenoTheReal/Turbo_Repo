@@ -469,6 +469,16 @@ export class StoresService {
   }
 
   /**
+   * Finds a store entity by its subdomain.
+   */
+  async findBySubdomain(subdomain: string): Promise<Store | null> {
+    const normalized = this.normalizeSubdomain(subdomain);
+    return this.storeRepository.findOne({
+      where: { subdomain: normalized },
+    });
+  }
+
+  /**
    * Resolves a public, active storefront by its subdomain for Next.js (web-fe).
    */
   async getStorefrontBySubdomain(subdomain: string): Promise<Record<string, any>> {

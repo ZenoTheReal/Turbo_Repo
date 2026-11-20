@@ -10,6 +10,8 @@ import { UploadModule } from './upload/upload.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { StoresModule } from './stores/stores.module.js';
 import { StripeModule } from './config/stripe/stripe.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
+import { OrdersGatewayModule } from './orders/orders.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { StripeModule } from './config/stripe/stripe.module.js';
     SettingsModule,
     StoresModule,
     StripeModule,
+    CatalogModule,
+    OrdersGatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],
