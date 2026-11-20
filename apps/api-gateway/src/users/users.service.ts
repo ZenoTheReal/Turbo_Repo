@@ -24,7 +24,7 @@ export class UsersService {
     this.roleRepository = this.database.dataSource.getRepository(Role);
   }
 
-  // 🔍 Find role by name ('ADMIN', 'SELLER', 'BUYER')
+  // Find role by name ('ADMIN', 'SELLER', 'BUYER')
   async findRoleByName(name: string): Promise<Role | null> {
     return this.roleRepository.findOne({ where: { name } });
   }
@@ -76,7 +76,7 @@ export class UsersService {
     if (data.name !== undefined) user.name = data.name;
     if (data.phoneNumber !== undefined) user.phoneNumber = data.phoneNumber;
 
-    // 🚚 Relocate file if an avatarKey from staging (temp/) was provided
+    // Relocate file if an avatarKey from staging (temp/) was provided
     if (data.avatarKey && data.avatarKey.startsWith('temp/')) {
       const fileExtension = data.avatarKey.split('.').pop() || 'jpg';
       const destinationKey = `avatars/user-${userId}-${Date.now()}.${fileExtension}`;
@@ -98,7 +98,7 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  // 📋 1. List all users with pagination, search, sorting & filtering
+  // 1. List all users with pagination, search, sorting & filtering
   async findAll(query: FindUsersQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 10;
@@ -108,12 +108,12 @@ export class UsersService {
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role');
 
-    // 🗑️ If includeDeleted is true, tell TypeORM to include soft-deleted records
+    // If includeDeleted is true, tell TypeORM to include soft-deleted records
     if (query.includeDeleted) {
       qb.withDeleted();
     }
 
-    // 🔍 Search across name and email (PostgreSQL ILIKE is case-insensitive)
+    // Search across name and email (PostgreSQL ILIKE is case-insensitive)
     if (query.search) {
       qb.andWhere(
         '(user.name ILIKE :search OR user.email ILIKE :search)',
@@ -121,17 +121,17 @@ export class UsersService {
       );
     }
 
-    // 🚦 Filter by status (ACTIVE, INACTIVE, SUSPENDED)
+    // Filter by status (ACTIVE, INACTIVE, SUSPENDED)
     if (query.status) {
       qb.andWhere('user.status = :status', { status: query.status });
     }
 
-    // 👑 Filter by role (ADMIN, SELLER, BUYER)
+    // Filter by role (ADMIN, SELLER, BUYER)
     if (query.role) {
       qb.andWhere('role.name = :role', { role: query.role });
     }
 
-    // ↕️ Safe column sorting
+    // Safe column sorting
     const allowedSortColumns: Record<string, string> = {
       createdAt: 'user.createdAt',
       name: 'user.name',
@@ -161,7 +161,7 @@ export class UsersService {
     };
   }
 
-  // 🚦 2. Update user status (ACTIVE, INACTIVE, SUSPENDED)
+  // 2. Update user status (ACTIVE, INACTIVE, SUSPENDED)
   async updateStatus(id: string, status: UserStatus, currentAdminId: string): Promise<User> {
     if (id === currentAdminId && status !== UserStatus.ACTIVE) {
       throw new BadRequestException('You cannot deactivate your own admin account');
@@ -176,7 +176,7 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  // 👑 3. Update user role (ADMIN, SELLER, BUYER)
+  // 3. Update user role (ADMIN, SELLER, BUYER)
   async updateRole(id: string, roleName: UserRole, currentAdminId: string): Promise<User> {
     if (id === currentAdminId && roleName !== UserRole.ADMIN) {
       throw new BadRequestException('You cannot remove the ADMIN role from your own account');
@@ -196,7 +196,7 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  // 🗑️ 4. Soft Delete a user
+  // 4. Soft Delete a user
   async softDelete(id: string, currentAdminId: string): Promise<{ message: string }> {
     if (id === currentAdminId) {
       throw new BadRequestException('You cannot delete your own admin account');
@@ -214,11 +214,11 @@ export class UsersService {
     return { message: `User '${user.email}' has been successfully soft-deleted` };
   }
 
-  // ♻️ 5. Restore a soft-deleted user
+  // 5. Restore a soft-deleted user
   async restore(id: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id },
-      withDeleted: true, // 👈 Required so TypeORM finds the soft-deleted user!
+      withDeleted: true,
     });
 
     if (!user) {

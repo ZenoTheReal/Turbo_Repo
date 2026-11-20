@@ -45,7 +45,7 @@ export class UsersController {
         private readonly storageService: StorageService,
     ) { }
 
-    // 👤 Any logged-in user: Get own profile
+    // Any logged-in user: Get own profile
     @Get('profile-details')
     @ApiOperation({ summary: 'Get profile of current logged-in user' })
     @ApiResponse({ status: 200, description: 'User profile retrieved successfully' })
@@ -56,7 +56,7 @@ export class UsersController {
         };
     }
 
-    // 👤 Any logged-in user: Update own profile
+    // Any logged-in user: Update own profile
     @Patch('profile')
     @ApiOperation({ summary: 'Update profile of current logged-in user' })
     @ApiResponse({ status: 200, description: 'Profile updated successfully' })
@@ -80,7 +80,7 @@ export class UsersController {
         };
     }
 
-    // 📸 Optional Shortcut: Upload avatar image directly in one request
+    // Optional Shortcut: Upload avatar image directly in one request
     @Post('profile/avatar')
     @UseInterceptors(
         FileInterceptor('file', {
@@ -141,7 +141,7 @@ export class UsersController {
     }
 
     // ==========================================
-    // 👑 ADMIN-ONLY ENDPOINTS BELOW
+    // ADMIN-ONLY ENDPOINTS BELOW
     // ==========================================
 
     // 1. List all users with pagination, search, sort & filters

@@ -54,7 +54,7 @@ export class StorageService {
   }
 
   /**
-   * 🎫 1. Generate a Presigned Upload URL for Direct-to-S3 Uploads (Up to 50MB)
+   * 1. Generate a Presigned Upload URL for Direct-to-S3 Uploads (Up to 50MB)
    * The client uses this URL to do an HTTP PUT directly to Supabase S3 without loading server memory.
    */
   async getPresignedUploadUrl(filename: string, mimetype: string, expiresIn = 900): Promise<PresignedUrlResult> {
@@ -83,7 +83,7 @@ export class StorageService {
   }
 
   /**
-   * 📤 2. Direct Multipart Upload (Server fallback, 50MB limit)
+   * 2. Direct Multipart Upload (Server fallback, 50MB limit)
    */
   async uploadTemp(file: Express.Multer.File): Promise<UploadResult> {
     if (!file || !file.buffer) {
@@ -120,7 +120,7 @@ export class StorageService {
   }
 
   /**
-   * 🚚 3. Relocate (Server-side Move): Copies from temp/ to permanent location, then deletes temp/
+   * 3. Relocate (Server-side Move): Copies from temp/ to permanent location, then deletes temp/
    */
   async relocateFile(sourceKey: string, destinationKey: string): Promise<string> {
     try {
@@ -151,7 +151,7 @@ export class StorageService {
   }
 
   /**
-   * 🗑️ 4. Delete an existing file
+   * 4. Delete an existing file
    */
   async deleteFile(fileKey: string): Promise<void> {
     try {

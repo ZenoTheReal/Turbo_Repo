@@ -27,7 +27,7 @@ import { GetPresignedUrlDto } from './dto/get-presigned-url.dto.js';
 export class UploadController {
   constructor(private readonly storageService: StorageService) {}
 
-  // 🎫 1. Presigned Upload URL (Direct 50MB upload from Browser to Supabase S3)
+  // 1. Presigned Upload URL (Direct 50MB upload from Browser to Supabase S3)
   @Post('presigned-url')
   @ApiOperation({
     summary: 'Generate a presigned S3 PUT URL for direct 50MB browser-to-S3 upload',
@@ -45,11 +45,11 @@ export class UploadController {
     };
   }
 
-  // 📤 2. Direct Multipart Upload (Server fallback, 50MB limit)
+  // 2. Direct Multipart Upload (Server fallback, 50MB limit)
   @Post()
   @UseInterceptors(
     FileInterceptor('file', {
-      limits: { fileSize: 50 * 1024 * 1024 }, // 🛡️ 50MB Limit
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB Limit
     }),
   )
   @ApiOperation({

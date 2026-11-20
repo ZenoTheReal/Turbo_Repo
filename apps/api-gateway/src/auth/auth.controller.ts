@@ -15,6 +15,7 @@ import {
     ApiOperation,
     ApiResponse,
     ApiBearerAuth,
+    ApiHeader,
 } from '@nestjs/swagger';
 import type { Response, Request } from 'express';
 import { AuthService } from './auth.service.js';
@@ -44,7 +45,7 @@ const REFRESH_COOKIE_OPTIONS = {
 export class AuthController {
     constructor(private readonly authService: AuthService) { }
 
-    // 📝 1. Register a new user (sends 6-digit OTP to email)
+    // 1. Register a new user (sends 6-digit OTP to email)
     @Post('register')
     @ApiOperation({ summary: 'Register a new user (sends verification OTP to email)' })
     @ApiResponse({ status: 201, description: 'User registered; verification code sent' })
@@ -52,28 +53,36 @@ export class AuthController {
         return this.authService.register(dto);
     }
 
-    // ✅ 2. Verify Email OTP & receive tokens
+    // 2. Verify Email OTP & receive tokens
     @Post('verify-email')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Verify 6-digit OTP to activate account and receive JWT tokens' })
+    @ApiHeader({
+        name: 'x-client-type',
+        required: false,
+        description: 'Set to "mobile" to receive refreshToken in JSON body; browser requests default to httpOnly cookie',
+    })
     @ApiResponse({ status: 200, description: 'Email verified successfully; tokens issued' })
     async verifyEmail(
+        @Req() req: Request,
         @Body() dto: VerifyEmailOtpDto,
         @Res({ passthrough: true }) res: Response,
     ) {
         const result = await this.authService.verifyEmail(dto);
-        // 🍪 Set HttpOnly cookie for Web
+        // Set HttpOnly cookie for Web
         res.cookie(COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+        const isBrowser = this.isBrowserRequest(req);
 
         return {
             message: result.message,
             user: result.user,
             accessToken: result.accessToken,
-            refreshToken: result.refreshToken,
+            ...(isBrowser ? {} : { refreshToken: result.refreshToken }),
         };
     }
 
-    // 🔁 3. Resend OTP (Rate-limited with 60-second cooldown)
+    // 3. Resend OTP (Rate-limited with 60-second cooldown)
     @Post('resend-otp')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Resend verification or password reset OTP' })
@@ -82,28 +91,36 @@ export class AuthController {
         return this.authService.resendOtp(dto);
     }
 
-    // 🔑 4. Log in (requires verified email)
+    // 4. Log in (requires verified email)
     @Post('login')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Log in with verified account' })
+    @ApiHeader({
+        name: 'x-client-type',
+        required: false,
+        description: 'Set to "mobile" to receive refreshToken in JSON body; browser requests default to httpOnly cookie',
+    })
     @ApiResponse({ status: 200, description: 'User logged in successfully' })
     async login(
+        @Req() req: Request,
         @Body() dto: LoginDto,
         @Res({ passthrough: true }) res: Response,
     ) {
         const result = await this.authService.login(dto);
-        // 🍪 Set HttpOnly cookie for Web
+        // Set HttpOnly cookie for Web
         res.cookie(COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
+
+        const isBrowser = this.isBrowserRequest(req);
 
         return {
             message: result.message,
             user: result.user,
             accessToken: result.accessToken,
-            refreshToken: result.refreshToken,
+            ...(isBrowser ? {} : { refreshToken: result.refreshToken }),
         };
     }
 
-    // ❓ 5. Request Password Reset OTP
+    // 5. Request Password Reset OTP
     @Post('forgot-password')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Request a 6-digit password reset code sent to email' })
@@ -112,7 +129,7 @@ export class AuthController {
         return this.authService.forgotPassword(dto);
     }
 
-    // 🔄 6. Reset Password with OTP
+    // 6. Reset Password with OTP
     @Post('reset-password')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Reset password using the 6-digit code received via email' })
@@ -121,7 +138,7 @@ export class AuthController {
         return this.authService.resetPassword(dto);
     }
 
-    // 🔒 7. Change Password (For authenticated Users & Admins)
+    // 7. Change Password (For authenticated Users & Admins)
     @Patch('change-password')
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth()
@@ -135,16 +152,21 @@ export class AuthController {
         return this.authService.changePassword(currentUser.id, dto);
     }
 
-    // 🔄 8. Exchange refresh token for fresh tokens
+    // 8. Exchange refresh token for fresh tokens
     @Post('refresh')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Exchange refresh token for fresh tokens' })
+    @ApiHeader({
+        name: 'x-client-type',
+        required: false,
+        description: 'Set to "mobile" to receive refreshToken in JSON body; browser requests default to httpOnly cookie',
+    })
     @ApiResponse({ status: 200, description: 'Tokens refreshed successfully' })
     @ApiResponse({ status: 401, description: 'Invalid or missing refresh token' })
     async refresh(
         @Req() req: Request,
         @Res({ passthrough: true }) res: Response,
-        @Body() dto: RefreshTokenDto,
+        @Body() dto?: RefreshTokenDto,
     ) {
         const token = req.cookies?.[COOKIE_NAME] || dto?.refreshToken;
         if (!token) {
@@ -154,13 +176,15 @@ export class AuthController {
         const tokens = await this.authService.refreshTokens({ refreshToken: token });
         res.cookie(COOKIE_NAME, tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
 
+        const isBrowser = this.isBrowserRequest(req);
+
         return {
             accessToken: tokens.accessToken,
-            refreshToken: tokens.refreshToken,
+            ...(isBrowser ? {} : { refreshToken: tokens.refreshToken }),
         };
     }
 
-    // 🚪 9. Log out and clear refresh token cookie
+    // 9. Log out and clear refresh token cookie
     @Post('logout')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ summary: 'Log out and clear the refresh token cookie' })
@@ -168,8 +192,38 @@ export class AuthController {
     logout(@Res({ passthrough: true }) res: Response) {
         res.clearCookie(COOKIE_NAME, {
             httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
             path: '/api/auth',
         });
         return { message: 'Logged out successfully' };
+    }
+
+    /**
+     * Determine whether the incoming request is from a web browser client.
+     * Browser clients receive the refresh token strictly via HttpOnly cookie to mitigate XSS risks.
+     * Mobile or non-browser clients (e.g. CLI, React Native, curl, Postman) receive the token in the JSON body.
+     */
+    private isBrowserRequest(req: Request): boolean {
+        const clientType = req.headers['x-client-type'];
+        if (clientType === 'mobile' || clientType === 'native' || clientType === 'cli') {
+            return false;
+        }
+        if (clientType === 'browser' || clientType === 'web') {
+            return true;
+        }
+        if (req.cookies?.[COOKIE_NAME]) {
+            return true;
+        }
+
+        const hasSecChUa = Boolean(req.headers['sec-ch-ua']);
+        const origin = req.headers['origin'];
+        const referer = req.headers['referer'];
+        const userAgent = (req.headers['user-agent'] as string) || '';
+        const isBrowserUserAgent =
+            /Mozilla|Chrome|Safari|Firefox|Edge/i.test(userAgent) &&
+            !/Postman|curl|insomnia|ThunderClient/i.test(userAgent);
+
+        return Boolean(hasSecChUa || origin || referer || isBrowserUserAgent);
     }
 }

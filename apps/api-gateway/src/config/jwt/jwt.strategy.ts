@@ -9,7 +9,7 @@ import { JwtPayload } from './jwt-helper.service.js';
 export class JwtStrategy extends PassportStrategy(Strategy) {
     constructor(
         configService: ConfigService,
-        private readonly usersService: UsersService, // 👈 Injected UsersService
+        private readonly usersService: UsersService,
     ) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -25,17 +25,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     async validate(payload: JwtPayload) {
         const user = await this.usersService.findById(payload.sub);
 
-        // ❌ 1. Reject if deleted
+        // 1. Reject if deleted
         if (!user || user.isDeleted) {
             throw new UnauthorizedException('User account no longer exists or was deleted');
         }
 
-        // ❌ 2. Reject if deactivated by Admin
+        // 2. Reject if deactivated by Admin
         if (user.status !== 'ACTIVE') {
             throw new UnauthorizedException(`Account is ${user.status.toLowerCase()}. Please contact support.`);
         }
 
-        // ❌ 3. Reject if email not verified
+        // 3. Reject if email not verified
         if (!user.isEmailVerified) {
             throw new UnauthorizedException('Account email is not verified');
         }

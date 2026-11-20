@@ -17,7 +17,7 @@ export enum SortOrder {
 }
 
 export class FindUsersQueryDto {
-  // 📄 Pagination
+  // Pagination
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -33,13 +33,13 @@ export class FindUsersQueryDto {
   @Max(100)
   limit?: number = 10;
 
-  // 🔍 Search (matches name or email)
+  // Search (matches name or email)
   @ApiPropertyOptional({ description: 'Search term for name or email' })
   @IsOptional()
   @IsString()
   search?: string;
 
-  // ↕️ Sorting
+  // Sorting
   @ApiPropertyOptional({
     description: 'Column to sort by',
     enum: ['createdAt', 'name', 'email', 'status'],
@@ -54,7 +54,7 @@ export class FindUsersQueryDto {
   @IsEnum(SortOrder)
   sortOrder?: SortOrder = SortOrder.DESC;
 
-  // 🏷️ Filters
+  // Filters
   @ApiPropertyOptional({ enum: UserRole, description: 'Filter by role' })
   @IsOptional()
   @IsEnum(UserRole)

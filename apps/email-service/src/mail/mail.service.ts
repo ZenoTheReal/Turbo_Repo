@@ -43,7 +43,7 @@ export class MailService {
         host,
         port,
         secure,
-        // 🛡️ SMTP Rate Limiting & Pooling
+        // SMTP Rate Limiting & Pooling
         pool: true,              // Reuses persistent TLS connection (avoids repeated SSL handshakes)
         maxConnections: 1,       // Strictly 1 connection: never triggers Google concurrent socket limit
         maxMessages: 100,        // Cycle socket every 100 emails to prevent stale connection timeouts
@@ -57,7 +57,7 @@ export class MailService {
     }
   }
 
-  // 📨 Core Low-Level Sender
+  // Core Low-Level Sender
   async sendMail(options: SendMailOptions): Promise<void> {
     if (!this.transporter) {
       this.logger.log(`\n================ SIMULATED EMAIL ================
@@ -85,25 +85,25 @@ ${options.text ?? options.html}
     }
   }
 
-  // 📝 1. Sign-Up OTP Email
+  // 1. Sign-Up OTP Email
   async sendSignupOtpEmail(email: string, name: string | undefined, otp: string): Promise<void> {
     const template = getSignupOtpTemplate({ siteName: this.siteName, name, otp });
     await this.sendMail({ to: email, ...template });
   }
 
-  // 🔒 2. Password Reset OTP Email
+  // 2. Password Reset OTP Email
   async sendPasswordResetOtpEmail(email: string, name: string | undefined, otp: string): Promise<void> {
     const template = getPasswordResetTemplate({ siteName: this.siteName, name, otp });
     await this.sendMail({ to: email, ...template });
   }
 
-  // 🎉 3. Welcome Email
+  // 3. Welcome Email
   async sendWelcomeEmail(email: string, name?: string): Promise<void> {
     const template = getWelcomeTemplate({ siteName: this.siteName, name });
     await this.sendMail({ to: email, ...template });
   }
 
-  // 📦 4. Order Confirmation Email
+  // 4. Order Confirmation Email
   async sendOrderConfirmationEmail(orderData: any): Promise<void> {
     const recipient = orderData.userEmail ?? orderData.email ?? 'customer@example.com';
     const orderId = orderData.id ?? orderData.orderId ?? 'N/A';
@@ -113,7 +113,7 @@ ${options.text ?? options.html}
     await this.sendMail({ to: recipient, ...template });
   }
 
-  // 🛡️ 5. Password Changed Security Alert
+  // 5. Password Changed Security Alert
   async sendPasswordChangedAlert(email: string, name: string | undefined): Promise<void> {
     const template = getSecurityAlertTemplate({ siteName: this.siteName, name });
     await this.sendMail({ to: email, ...template });

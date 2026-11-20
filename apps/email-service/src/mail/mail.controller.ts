@@ -17,9 +17,9 @@ export class MailController {
 
     try {
       await action();
-      channel.ack(originalMsg); // ✅ Tell CloudAMQP message completed successfully
+      channel.ack(originalMsg); // Acknowledge CloudAMQP message completed successfully
     } catch (error) {
-      console.error('❌ [Email Service] Error processing message, dropping without requeue:', error);
+      console.error('[Email Service] Error processing message, dropping without requeue:', error);
       // NACK with requeue=false so a bad email address doesn't cause an infinite retry loop
       channel.nack(originalMsg, false, false);
     }
@@ -31,7 +31,7 @@ export class MailController {
     @Ctx() context: any,
   ) {
     await this.handleMessage(context, async () => {
-      console.log('📧 [Email Service] Event received: SEND_SIGNUP_OTP for', data.email);
+      console.log('[Email Service] Event received: SEND_SIGNUP_OTP for', data.email);
       await this.mailService.sendSignupOtpEmail(data.email, data.name, data.otp);
     });
   }
@@ -42,7 +42,7 @@ export class MailController {
     @Ctx() context: any,
   ) {
     await this.handleMessage(context, async () => {
-      console.log('📧 [Email Service] Event received: SEND_WELCOME for', data.email);
+      console.log('[Email Service] Event received: SEND_WELCOME for', data.email);
       await this.mailService.sendWelcomeEmail(data.email, data.name);
     });
   }
@@ -53,7 +53,7 @@ export class MailController {
     @Ctx() context: any,
   ) {
     await this.handleMessage(context, async () => {
-      console.log('📧 [Email Service] Event received: SEND_PASSWORD_RESET_OTP for', data.email);
+      console.log('[Email Service] Event received: SEND_PASSWORD_RESET_OTP for', data.email);
       await this.mailService.sendPasswordResetOtpEmail(data.email, data.name, data.otp);
     });
   }
@@ -64,7 +64,7 @@ export class MailController {
     @Ctx() context: any,
   ) {
     await this.handleMessage(context, async () => {
-      console.log('📧 [Email Service] Event received: PASSWORD_CHANGED_ALERT for', data.email);
+      console.log('[Email Service] Event received: PASSWORD_CHANGED_ALERT for', data.email);
       await this.mailService.sendPasswordChangedAlert(data.email, data.name);
     });
   }
@@ -72,7 +72,7 @@ export class MailController {
   @EventPattern(EMAIL_EVENTS.SEND_ORDER_CONFIRMATION)
   async handleSendOrderConfirmation(@Payload() data: any, @Ctx() context: any) {
     await this.handleMessage(context, async () => {
-      console.log('📧 [Email Service] Event received: SEND_ORDER_CONFIRMATION', data);
+      console.log('[Email Service] Event received: SEND_ORDER_CONFIRMATION', data);
       await this.mailService.sendOrderConfirmationEmail(data);
     });
   }
@@ -80,7 +80,7 @@ export class MailController {
   @EventPattern(ORDER_EVENTS.CREATED)
   async handleOrderCreated(@Payload() orderData: any, @Ctx() context: any) {
     await this.handleMessage(context, async () => {
-      console.log('📧 [Email Service] Received order_created event:', orderData);
+      console.log('[Email Service] Received order_created event:', orderData);
       await this.mailService.sendOrderConfirmationEmail(orderData);
     });
   }

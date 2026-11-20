@@ -30,7 +30,7 @@ export class AuthService {
         @Inject(SERVICES.EMAIL) private readonly emailClient: ClientProxy,
     ) { }
 
-    // 📝 1. Register: Creates unverified user, generates OTP, sends email
+    // 1. Register: Creates unverified user, generates OTP, sends email
     async register(dto: RegisterDto) {
         const existing = await this.usersService.findByEmail(dto.email);
         if (existing) {
@@ -73,7 +73,7 @@ export class AuthService {
         };
     }
 
-    // ✅ 2. Verify Email OTP: Activates account & issues JWT tokens
+    // 2. Verify Email OTP: Activates account & issues JWT tokens
     async verifyEmail(dto: VerifyEmailOtpDto) {
         const user = await this.usersService.findByEmail(dto.email);
         if (!user) {
@@ -119,7 +119,7 @@ export class AuthService {
         };
     }
 
-    // 🔁 3. Resend OTP: Rate-limited with 60s cooldown
+    // 3. Resend OTP: Rate-limited with 60s cooldown
     async resendOtp(dto: ResendOtpDto) {
         const user = await this.usersService.findByEmail(dto.email);
         if (!user) {
@@ -151,7 +151,7 @@ export class AuthService {
         };
     }
 
-    // 🔑 4. Login: Validates status, password, and email verification
+    // 4. Login: Validates status, password, and email verification
     async login(dto: LoginDto) {
         const user = await this.usersService.findByEmail(dto.email, true);
         if (!user) {
@@ -204,7 +204,7 @@ export class AuthService {
         };
     }
 
-    // ❓ 5. Forgot Password: Sends 6-digit reset code
+    // 5. Forgot Password: Sends 6-digit reset code
     async forgotPassword(dto: ForgotPasswordDto) {
         const user = await this.usersService.findByEmail(dto.email);
         if (user && !user.isDeleted && user.status === 'ACTIVE') {
@@ -222,7 +222,7 @@ export class AuthService {
         };
     }
 
-    // 🔄 6. Reset Password: Uses OTP to reset password
+    // 6. Reset Password: Uses OTP to reset password
     async resetPassword(dto: ResetPasswordDto) {
         const user = await this.usersService.findByEmail(dto.email, true);
         if (!user) {
@@ -246,7 +246,7 @@ export class AuthService {
         };
     }
 
-    // 🔒 7. Change Password: For logged-in users and admins
+    // 7. Change Password: For logged-in users and admins
     async changePassword(userId: string, dto: ChangePasswordDto) {
         const user = await this.usersService.findByIdWithPassword(userId);
         if (!user) {
@@ -284,8 +284,12 @@ export class AuthService {
         };
     }
 
-    // 🔄 8. Refresh Tokens
+    // 8. Refresh Tokens
     async refreshTokens(dto: RefreshTokenDto) {
+        if (!dto.refreshToken) {
+            throw new UnauthorizedException('Refresh token is required');
+        }
+
         try {
             const payload = this.jwtHelper.verifyRefreshToken(dto.refreshToken);
 

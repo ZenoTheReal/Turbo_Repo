@@ -13,7 +13,7 @@ const ADMIN_CREDENTIALS = {
 };
 
 async function runAdminSeed() {
-    console.log('🌱 Starting Admin user seeding...');
+    console.log('[Seed] Starting Admin user seeding...');
 
     // 1. Create a headless NestJS context (loads config and DB connection)
     const app = await NestFactory.createApplicationContext(AppModule);
@@ -30,7 +30,7 @@ async function runAdminSeed() {
 
     if (!adminRole) {
         console.error(
-            `❌ Error: Role '${ADMIN_CREDENTIALS.roleName}' not found. Please run 'yarn workspace api-gateway role:seed' first.`,
+            `[Error] Role '${ADMIN_CREDENTIALS.roleName}' not found. Please run 'yarn workspace api-gateway role:seed' first.`,
         );
         await app.close();
         process.exit(1);
@@ -65,16 +65,16 @@ async function runAdminSeed() {
 
         await userRepository.save(adminUser);
         console.log(
-            `  \x1b[32m✔ Created Admin user: ${ADMIN_CREDENTIALS.email} (Role: ${adminRole.name})\x1b[0m`,
+            `  \x1b[32m- Created Admin user: ${ADMIN_CREDENTIALS.email} (Role: ${adminRole.name})\x1b[0m`,
         );
     }
 
-    console.log('✅ Admin seeding completed successfully!');
+    console.log('[Seed] Admin seeding completed successfully.');
     await app.close();
     process.exit(0);
 }
 
 runAdminSeed().catch((err) => {
-    console.error('❌ Admin seeding failed:', err);
+    console.error('[Error] Admin seeding failed:', err);
     process.exit(1);
 });

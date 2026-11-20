@@ -28,9 +28,9 @@ export class Database implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     try {
       await this.dataSource.initialize();
-      console.log('\x1b[32m✅ Connected to Supabase PostgreSQL successfully\x1b[0m');
+      console.log('\x1b[32m[Database] Connected to Supabase PostgreSQL successfully\x1b[0m');
     } catch (error) {
-      console.error('\x1b[31m❌ Database connection failed:\x1b[0m', error);
+      console.error('\x1b[31m[Database] Database connection failed:\x1b[0m', error);
     }
   }
 

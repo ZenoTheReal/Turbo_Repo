@@ -19,11 +19,11 @@ export class OtpService {
     this.otpRepository = this.database.dataSource.getRepository(Otp);
   }
 
-  // 🔢 1. Generate 6-digit OTP with cooldown & invalidation of older codes
+  // 1. Generate 6-digit OTP with cooldown & invalidation of older codes
   async generateOtp(email: string, type: OtpType, userId?: string): Promise<string> {
     const normalizedEmail = email.toLowerCase().trim();
 
-    // ⏳ Cooldown check: prevent spamming resend requests
+    // Cooldown check: prevent spamming resend requests
     const latestOtp = await this.otpRepository.findOne({
       where: { email: normalizedEmail, type, isUsed: false },
       order: { createdAt: 'DESC' },
@@ -43,7 +43,7 @@ export class OtpService {
       await this.otpRepository.save(latestOtp);
     }
 
-    // 🎲 Generate cryptographically secure-looking 6-digit number
+    // Generate cryptographically secure 6-digit number
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + OTP_EXPIRATION_MINUTES * 60 * 1000);
 
@@ -61,7 +61,7 @@ export class OtpService {
     return code;
   }
 
-  // 🔍 2. Verify OTP with attempt-throttling & expiration check
+  // 2. Verify OTP with attempt-throttling & expiration check
   async verifyOtp(email: string, code: string, type: OtpType): Promise<Otp> {
     const normalizedEmail = email.toLowerCase().trim();
 
