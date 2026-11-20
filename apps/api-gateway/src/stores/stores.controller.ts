@@ -10,6 +10,8 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,7 +22,9 @@ import {
 } from '@nestjs/swagger';
 import { UserRole } from '@repo/common';
 import { StoresService } from './stores.service.js';
+import { StripeService } from '../config/stripe/stripe.service.js';
 import { ApplyStoreDto } from './dto/apply-store.dto.js';
+import { UpdateStoreDto } from './dto/update-store.dto.js';
 import { CheckSubdomainDto } from './dto/check-subdomain.dto.js';
 import { FindStoresQueryDto } from './dto/find-stores-query.dto.js';
 import { UpdateStoreStatusDto } from './dto/update-store-status.dto.js';
@@ -32,7 +36,10 @@ import { CurrentUser, type CurrentUserPayload } from '../common/decorators/curre
 @ApiTags('Stores')
 @Controller()
 export class StoresController {
-  constructor(private readonly storesService: StoresService) {}
+  constructor(
+    private readonly storesService: StoresService,
+    private readonly stripeService: StripeService,
+  ) {}
 
   // 1. Live Subdomain Availability Check (Public)
   @Get('stores/check-subdomain')
@@ -79,7 +86,108 @@ export class StoresController {
     };
   }
 
-  // 4. Public Storefront Resolution for Next.js (web-fe)
+  // 4. Seller Updates Storefront Profile, Theme, and Policies
+  @Patch('stores/my-store')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  @ApiOperation({ summary: '[SELLER] Update storefront profile, theme settings, branding, and policies' })
+  @ApiResponse({ status: 200, description: 'Storefront updated successfully' })
+  async updateMyStore(
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: UpdateStoreDto,
+  ) {
+    const store = await this.storesService.findByOwnerId(user.id);
+    if (!store) {
+      throw new NotFoundException('You do not have a registered storefront.');
+    }
+    const updatedStore = await this.storesService.updateStore(store.id, user.id, dto);
+    return {
+      message: 'Storefront profile updated successfully.',
+      store: updatedStore,
+    };
+  }
+
+  // 5. Seller Initiates Stripe Connect Onboarding (Activates Store Payouts)
+  @Post('stores/my-store/stripe/connect')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  @ApiOperation({ summary: '[SELLER] Generate Stripe Connect hosted onboarding link to activate store payouts' })
+  @ApiResponse({ status: 200, description: 'Stripe onboarding URL generated' })
+  async connectStripe(
+    @CurrentUser() user: CurrentUserPayload,
+    @Query('returnUrl') returnUrl?: string,
+    @Query('refreshUrl') refreshUrl?: string,
+  ) {
+    const store = await this.storesService.findByOwnerId(user.id);
+    if (!store) {
+      throw new NotFoundException('You do not have a registered storefront.');
+    }
+
+    const defaultReturn = returnUrl || 'http://localhost:3000/seller/payouts?status=success';
+    const defaultRefresh = refreshUrl || 'http://localhost:3000/seller/payouts?status=refresh';
+
+    const onboardingUrl = await this.stripeService.createConnectOnboardingLink(
+      store,
+      defaultReturn,
+      defaultRefresh,
+    );
+
+    return {
+      message: 'Stripe onboarding URL generated successfully.',
+      onboardingUrl,
+    };
+  }
+
+  // 6. Seller Accesses Stripe Express Dashboard
+  @Get('stores/my-store/stripe/dashboard')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  @ApiOperation({ summary: '[SELLER] Access Stripe Express dashboard for bank accounts and payouts' })
+  @ApiResponse({ status: 200, description: 'Stripe Express dashboard login URL generated' })
+  async getStripeDashboard(@CurrentUser() user: CurrentUserPayload) {
+    const store = await this.storesService.findByOwnerId(user.id);
+    if (!store || !store.stripeAccountId) {
+      throw new BadRequestException('Store has not connected a Stripe account yet.');
+    }
+
+    const dashboardUrl = await this.stripeService.createExpressDashboardLink(store.stripeAccountId);
+    return { dashboardUrl };
+  }
+
+  // 7. Seller Checks Stripe Connect Payout Status
+  @Get('stores/my-store/stripe/status')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SELLER)
+  @ApiOperation({ summary: '[SELLER] Get current Stripe Connect payout status' })
+  @ApiResponse({ status: 200, description: 'Stripe Connect status retrieved' })
+  async getStripeStatus(@CurrentUser() user: CurrentUserPayload) {
+    const store = await this.storesService.findByOwnerId(user.id);
+    if (!store) {
+      throw new NotFoundException('You do not have a registered storefront.');
+    }
+
+    return {
+      stripeAccountId: store.stripeAccountId ?? null,
+      isPayoutsEnabled: store.isPayoutsEnabled,
+      hasConnectedStripe: Boolean(store.stripeAccountId),
+      currency: store.currency,
+      status: store.isPayoutsEnabled
+        ? 'READY'
+        : store.stripeAccountId
+          ? 'VERIFICATION_PENDING'
+          : 'NOT_CONNECTED',
+    };
+  }
+
+  // 8. Public Storefront Resolution for Next.js (web-fe)
   @Get('storefronts/:subdomain')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Fetch active storefront branding and configuration by subdomain' })

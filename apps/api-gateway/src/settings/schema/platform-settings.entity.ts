@@ -63,6 +63,20 @@ export class PlatformSettings {
   @Column({ type: 'boolean', default: false })
   isStripeEnabled: boolean;
 
+  // Stripe Automated Webhook Configuration (Encrypted with AES-256-GCM)
+  @ApiProperty({ example: 'we_1234567890', required: false })
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  stripeWebhookEndpointId?: string;
+
+  @Column({ type: 'text', nullable: true })
+  stripeWebhookSecretCiphertext?: string;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  stripeWebhookSecretIv?: string;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  stripeWebhookSecretTag?: string;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

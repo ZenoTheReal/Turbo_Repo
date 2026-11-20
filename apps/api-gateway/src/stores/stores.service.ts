@@ -14,6 +14,7 @@ import { StorageService } from '../config/storage/storage.service.js';
 import { Store } from './schema/store.entity.js';
 import { User } from '../users/schema/user.entity.js';
 import { ApplyStoreDto } from './dto/apply-store.dto.js';
+import { UpdateStoreDto } from './dto/update-store.dto.js';
 import { FindStoresQueryDto, StoreSortOrder } from './dto/find-stores-query.dto.js';
 import {
   StoreStatus,
@@ -185,8 +186,17 @@ export class StoresService {
       name: dto.name,
       subdomain: normalizedSubdomain,
       description: dto.description,
+      tagline: dto.tagline,
       contactEmail: dto.contactEmail ?? owner.email,
       contactPhone: dto.contactPhone ?? owner.phoneNumber,
+      legalBusinessName: dto.legalBusinessName,
+      taxId: dto.taxId,
+      businessAddress: dto.businessAddress,
+      city: dto.city,
+      state: dto.state,
+      postalCode: dto.postalCode,
+      country: dto.country ? dto.country.toUpperCase() : 'US',
+      currency: dto.currency ? dto.currency.toUpperCase() : 'USD',
       ownerId,
       status: StoreStatus.PENDING_APPROVAL,
     });
@@ -205,6 +215,13 @@ export class StoresService {
       const fileExt = dto.bannerKey.split('.').pop() || 'png';
       const destinationKey = `stores/store-${savedStore.id}-banner-${Date.now()}.${fileExt}`;
       savedStore.bannerUrl = await this.storageService.relocateFile(dto.bannerKey, destinationKey);
+    }
+
+    // Promote favicon from temp/ to stores/ folder if provided
+    if (dto.faviconKey && dto.faviconKey.startsWith('temp/')) {
+      const fileExt = dto.faviconKey.split('.').pop() || 'ico';
+      const destinationKey = `stores/store-${savedStore.id}-favicon-${Date.now()}.${fileExt}`;
+      savedStore.faviconUrl = await this.storageService.relocateFile(dto.faviconKey, destinationKey);
     }
 
     await this.storeRepository.save(savedStore);
@@ -389,9 +406,72 @@ export class StoresService {
   }
 
   /**
+   * Updates an existing storefront profile, theme, and policies.
+   */
+  async updateStore(storeId: string, ownerId: string, dto: UpdateStoreDto): Promise<Store> {
+    const store = await this.storeRepository.findOne({ where: { id: storeId } });
+    if (!store) {
+      throw new NotFoundException(`Storefront with ID "${storeId}" was not found.`);
+    }
+
+    if (store.ownerId !== ownerId) {
+      throw new ForbiddenException('You are not authorized to update this storefront.');
+    }
+
+    if (dto.name !== undefined) store.name = dto.name;
+    if (dto.description !== undefined) store.description = dto.description;
+    if (dto.tagline !== undefined) store.tagline = dto.tagline;
+    if (dto.contactEmail !== undefined) store.contactEmail = dto.contactEmail;
+    if (dto.contactPhone !== undefined) store.contactPhone = dto.contactPhone;
+    if (dto.customDomain !== undefined) store.customDomain = dto.customDomain;
+    if (dto.isOpen !== undefined) store.isOpen = dto.isOpen;
+    if (dto.maintenanceNotice !== undefined) store.maintenanceNotice = dto.maintenanceNotice;
+    if (dto.themeSettings !== undefined) store.themeSettings = dto.themeSettings;
+    if (dto.socialLinks !== undefined) store.socialLinks = dto.socialLinks;
+    if (dto.returnPolicy !== undefined) store.returnPolicy = dto.returnPolicy;
+    if (dto.shippingPolicy !== undefined) store.shippingPolicy = dto.shippingPolicy;
+    if (dto.privacyPolicy !== undefined) store.privacyPolicy = dto.privacyPolicy;
+
+    // Promote and replace logo if a new temporary file was uploaded
+    if (dto.logoKey && dto.logoKey.startsWith('temp/')) {
+      if (store.logoUrl) {
+        const oldKey = this.storageService.extractKeyFromUrl(store.logoUrl);
+        if (oldKey) await this.storageService.deleteFile(oldKey);
+      }
+      const fileExt = dto.logoKey.split('.').pop() || 'png';
+      const destinationKey = `stores/store-${store.id}-logo-${Date.now()}.${fileExt}`;
+      store.logoUrl = await this.storageService.relocateFile(dto.logoKey, destinationKey);
+    }
+
+    // Promote and replace banner
+    if (dto.bannerKey && dto.bannerKey.startsWith('temp/')) {
+      if (store.bannerUrl) {
+        const oldKey = this.storageService.extractKeyFromUrl(store.bannerUrl);
+        if (oldKey) await this.storageService.deleteFile(oldKey);
+      }
+      const fileExt = dto.bannerKey.split('.').pop() || 'png';
+      const destinationKey = `stores/store-${store.id}-banner-${Date.now()}.${fileExt}`;
+      store.bannerUrl = await this.storageService.relocateFile(dto.bannerKey, destinationKey);
+    }
+
+    // Promote and replace favicon
+    if (dto.faviconKey && dto.faviconKey.startsWith('temp/')) {
+      if (store.faviconUrl) {
+        const oldKey = this.storageService.extractKeyFromUrl(store.faviconUrl);
+        if (oldKey) await this.storageService.deleteFile(oldKey);
+      }
+      const fileExt = dto.faviconKey.split('.').pop() || 'ico';
+      const destinationKey = `stores/store-${store.id}-favicon-${Date.now()}.${fileExt}`;
+      store.faviconUrl = await this.storageService.relocateFile(dto.faviconKey, destinationKey);
+    }
+
+    return this.storeRepository.save(store);
+  }
+
+  /**
    * Resolves a public, active storefront by its subdomain for Next.js (web-fe).
    */
-  async getStorefrontBySubdomain(subdomain: string): Promise<Partial<Store>> {
+  async getStorefrontBySubdomain(subdomain: string): Promise<Record<string, any>> {
     const normalized = this.normalizeSubdomain(subdomain);
 
     const store = await this.storeRepository.findOne({
@@ -411,8 +491,23 @@ export class StoresService {
       subdomain: store.subdomain,
       customDomain: store.customDomain,
       description: store.description,
+      tagline: store.tagline,
       logoUrl: store.logoUrl,
       bannerUrl: store.bannerUrl,
+      faviconUrl: store.faviconUrl,
+      isOpen: store.isOpen,
+      maintenanceNotice: store.maintenanceNotice,
+      isPayoutsEnabled: store.isPayoutsEnabled,
+      currency: store.currency,
+      themeSettings: store.themeSettings ?? {
+        primaryColor: '#000000',
+        accentColor: '#3b82f6',
+        fontFamily: 'Inter',
+      },
+      socialLinks: store.socialLinks ?? {},
+      returnPolicy: store.returnPolicy,
+      shippingPolicy: store.shippingPolicy,
+      privacyPolicy: store.privacyPolicy,
       contactEmail: store.contactEmail,
       contactPhone: store.contactPhone,
       createdAt: store.createdAt,

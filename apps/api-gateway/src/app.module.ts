@@ -9,6 +9,7 @@ import { MicroserviceClientsModule } from './config/microservices/clients.module
 import { UploadModule } from './upload/upload.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { StoresModule } from './stores/stores.module.js';
+import { StripeModule } from './config/stripe/stripe.module.js';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { StoresModule } from './stores/stores.module.js';
     UploadModule,
     SettingsModule,
     StoresModule,
+    StripeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -6,17 +6,53 @@ import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('PORT') ?? 3002;
   app.use(cookieParser());
 
+  const rawCorsOrigins = configService.get<string>('CORS_ORIGINS');
+  const allowedOrigins: string[] = rawCorsOrigins
+    ? rawCorsOrigins
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : ['http://localhost:3000', 'http://localhost:3001'];
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000', // Next.js frontend
-      'http://localhost:3001', // Angular frontend
-    ], // Allow all origins (you can specify specific origins if needed)
+    origin: (
+      requestOrigin: string | undefined,
+      callback: (err: Error | null, origin?: boolean) => void,
+    ) => {
+      // Allow server-to-server, curl, mobile clients with no origin header
+      if (!requestOrigin) {
+        return callback(null, true);
+      }
+
+      const isAllowed = allowedOrigins.some((allowed) => {
+        if (allowed === '*' || allowed === requestOrigin) {
+          return true;
+        }
+
+        // Support wildcard subdomain patterns (e.g. http://*.localhost:3000 or https://*.omnistore.com)
+        if (allowed.includes('*')) {
+          const escapedPattern = allowed
+            .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*');
+          const regex = new RegExp(`^${escapedPattern}$`, 'i');
+          return regex.test(requestOrigin);
+        }
+
+        return false;
+      });
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     credentials: true, // Allows sending cookies or authorization headers
   });
