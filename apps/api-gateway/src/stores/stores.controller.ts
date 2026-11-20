@@ -127,13 +127,10 @@ export class StoresController {
       throw new NotFoundException('You do not have a registered storefront.');
     }
 
-    const defaultReturn = returnUrl || 'http://localhost:3000/seller/payouts?status=success';
-    const defaultRefresh = refreshUrl || 'http://localhost:3000/seller/payouts?status=refresh';
-
     const onboardingUrl = await this.stripeService.createConnectOnboardingLink(
       store,
-      defaultReturn,
-      defaultRefresh,
+      returnUrl,
+      refreshUrl,
     );
 
     return {

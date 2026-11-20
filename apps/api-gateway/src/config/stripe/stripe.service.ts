@@ -247,14 +247,42 @@ export class StripeService implements OnModuleInit {
   }
 
   /**
+   * Dynamically resolves the full URL of a storefront, respecting custom domains and subdomains.
+   * E.g. in development: http://nike.localhost:3000
+   * E.g. in production: https://nike.omnistore.com or https://store.nike.com
+   */
+  resolveStoreUrl(store: Store): string {
+    if (store.customDomain) {
+      return store.customDomain.startsWith('http')
+        ? store.customDomain
+        : `https://${store.customDomain}`;
+    }
+
+    const frontendBaseUrl =
+      this.configService.get<string>('FRONTEND_STORE_URL') || 'http://localhost:3000';
+
+    try {
+      const parsed = new URL(frontendBaseUrl);
+      const hostWithSubdomain = `${store.subdomain}.${parsed.host}`;
+      return `${parsed.protocol}//${hostWithSubdomain}`;
+    } catch {
+      return `https://${store.subdomain}.omnistore.com`;
+    }
+  }
+
+  /**
    * Provisions a Stripe Express Connect account for a storefront and generates the onboarding link.
    * Utilizes idempotency keys to ensure multiple clicks do not create duplicate accounts.
    */
   async createConnectOnboardingLink(
     store: Store,
-    returnUrl: string,
-    refreshUrl: string,
+    returnUrl?: string,
+    refreshUrl?: string,
   ): Promise<string> {
+    const storeUrl = this.resolveStoreUrl(store);
+    const finalReturnUrl = returnUrl || `${storeUrl}/seller/payouts?status=success`;
+    const finalRefreshUrl = refreshUrl || `${storeUrl}/seller/payouts?status=refresh`;
+
     let accountId = store.stripeAccountId;
 
     // 1. Create Connect Express Account if not already created
@@ -272,7 +300,7 @@ export class StripeService implements OnModuleInit {
             },
             business_profile: {
               name: store.name,
-              url: `https://${store.subdomain}.omnistore.com`,
+              url: storeUrl,
             },
             metadata: {
               storeId: store.id,
@@ -298,8 +326,8 @@ export class StripeService implements OnModuleInit {
       const accountLink = await this.client.accountLinks.create(
         {
           account: accountId,
-          refresh_url: refreshUrl,
-          return_url: returnUrl,
+          refresh_url: finalRefreshUrl,
+          return_url: finalReturnUrl,
           type: 'account_onboarding',
         },
         { idempotencyKey: linkIdempotencyKey },
