@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { MicroserviceClientsModule } from './config/microservices/clients.module.js';
 import { UploadModule } from './upload/upload.module.js';
+import { SettingsModule } from './settings/settings.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { UploadModule } from './upload/upload.module.js';
     UsersModule,
     AuthModule,
     UploadModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
