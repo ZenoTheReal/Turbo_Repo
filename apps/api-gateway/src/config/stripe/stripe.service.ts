@@ -6,9 +6,9 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import Stripe from 'stripe';
+import { Database } from '../database/database.js';
 import { Store } from '../../stores/schema/store.entity.js';
 import { PlatformSettings } from '../../settings/schema/platform-settings.entity.js';
 import { CryptoUtil } from '../../common/utils/crypto.util.js';
@@ -21,14 +21,16 @@ export class StripeService implements OnModuleInit {
   private readonly logger = new Logger(StripeService.name);
   public readonly client: Stripe;
   private webhookSecret: string = '';
+  private readonly storeRepository: Repository<Store>;
+  private readonly platformSettingsRepository: Repository<PlatformSettings>;
 
   constructor(
     private readonly configService: ConfigService,
-    @InjectRepository(Store)
-    private readonly storeRepository: Repository<Store>,
-    @InjectRepository(PlatformSettings)
-    private readonly platformSettingsRepository: Repository<PlatformSettings>,
+    private readonly database: Database,
   ) {
+    this.storeRepository = this.database.dataSource.getRepository(Store);
+    this.platformSettingsRepository = this.database.dataSource.getRepository(PlatformSettings);
+
     const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY') || '';
     if (!secretKey) {
       this.logger.warn('STRIPE_SECRET_KEY is not defined in environment variables.');

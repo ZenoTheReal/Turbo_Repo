@@ -1,6 +1,11 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
+import { User } from '../../users/schema/user.entity.js';
+import { Role } from '../../users/schema/role.entity.js';
+import { Otp } from '../../auth/schema/otp.entity.js';
+import { PlatformSettings } from '../../settings/schema/platform-settings.entity.js';
+import { Store } from '../../stores/schema/store.entity.js';
 
 @Injectable()
 export class Database implements OnModuleInit, OnModuleDestroy {
@@ -14,10 +19,7 @@ export class Database implements OnModuleInit, OnModuleDestroy {
       username: this.configService.get<string>('DATABASE_USER'),
       password: this.configService.get<string>('DATABASE_PASSWORD'),
       database: this.configService.get<string>('DATABASE_NAME', 'postgres'),
-      entities: [
-        import.meta.dirname + '/../../**/*.entity.ts',
-        import.meta.dirname + '/../../**/*.entity.js',
-      ],
+      entities: [User, Role, Otp, PlatformSettings, Store],
       synchronize: this.configService.get<string>('NODE_ENV') !== 'production',
       ssl: {
         rejectUnauthorized: false,
