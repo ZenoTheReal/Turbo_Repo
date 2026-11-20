@@ -19,6 +19,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { JwtHelperService } from '../config/jwt/jwt-helper.service.js';
+import { StoresService } from '../stores/stores.service.js';
 import { UserRole, OtpType, SERVICES, EMAIL_EVENTS } from '@repo/common';
 
 @Injectable()
@@ -27,17 +28,31 @@ export class AuthService {
         private readonly usersService: UsersService,
         private readonly otpService: OtpService,
         private readonly jwtHelper: JwtHelperService,
+        private readonly storesService: StoresService,
         @Inject(SERVICES.EMAIL) private readonly emailClient: ClientProxy,
     ) { }
 
     // 1. Register: Creates unverified user, generates OTP, sends email
-    async register(dto: RegisterDto) {
-        const existing = await this.usersService.findByEmail(dto.email);
+    async register(dto: RegisterDto, tenantSubdomain?: string) {
+        const subdomain = dto.subdomain ?? tenantSubdomain;
+        let storeId: string | null = null;
+        let roleName = dto.role ?? UserRole.BUYER;
+
+        if (subdomain) {
+            // Customer registering on a specific storefront
+            const store = await this.storesService.getStorefrontBySubdomain(subdomain);
+            storeId = store.id!;
+            roleName = UserRole.BUYER; // Storefront customers are always BUYER
+        }
+
+        const existing = await this.usersService.findByEmail(dto.email, false, storeId);
         if (existing) {
+            if (storeId) {
+                throw new ConflictException('A customer account with this email already exists for this store');
+            }
             throw new ConflictException('A user with this email already exists');
         }
 
-        const roleName = dto.role ?? UserRole.BUYER;
         const role = await this.usersService.findRoleByName(roleName);
         if (!role) {
             throw new BadRequestException(
@@ -51,8 +66,10 @@ export class AuthService {
         const user = await this.usersService.create({
             name: dto.name,
             email: dto.email,
+            phoneNumber: dto.phoneNumber,
             password: hashedPassword,
             role: role,
+            storeId: storeId ?? undefined,
             isEmailVerified: false,
         });
 
@@ -70,12 +87,19 @@ export class AuthService {
             message: 'Registration successful. A 6-digit verification code has been sent to your email.',
             email: user.email,
             requiresVerification: true,
+            storeId: user.storeId ?? null,
         };
     }
 
     // 2. Verify Email OTP: Activates account & issues JWT tokens
     async verifyEmail(dto: VerifyEmailOtpDto) {
-        const user = await this.usersService.findByEmail(dto.email);
+        // Validate code with attempt limit & expiration
+        const verifiedOtp = await this.otpService.verifyOtp(dto.email, dto.otp, OtpType.SIGNUP_VERIFICATION);
+
+        const user = verifiedOtp.userId
+            ? await this.usersService.findById(verifiedOtp.userId)
+            : await this.usersService.findByEmail(dto.email);
+
         if (!user) {
             throw new NotFoundException('User with this email not found');
         }
@@ -83,9 +107,6 @@ export class AuthService {
         if (user.isEmailVerified) {
             throw new BadRequestException('Email is already verified. Please log in.');
         }
-
-        // Validate code with attempt limit & expiration
-        await this.otpService.verifyOtp(dto.email, dto.otp, OtpType.SIGNUP_VERIFICATION);
 
         // Mark account as verified
         user.isEmailVerified = true;
@@ -99,11 +120,12 @@ export class AuthService {
 
         const roleName = user.role?.name ?? UserRole.BUYER;
 
-        // Generate JWT session tokens
+        // Generate JWT session tokens with store boundary
         const tokens = this.jwtHelper.generateAuthTokens({
             sub: user.id,
             email: user.email,
             role: roleName,
+            storeId: user.storeId ?? null,
         });
 
         return {
@@ -114,6 +136,7 @@ export class AuthService {
                 email: user.email,
                 role: roleName,
                 isEmailVerified: true,
+                storeId: user.storeId ?? null,
             },
             ...tokens,
         };
@@ -152,8 +175,16 @@ export class AuthService {
     }
 
     // 4. Login: Validates status, password, and email verification
-    async login(dto: LoginDto) {
-        const user = await this.usersService.findByEmail(dto.email, true);
+    async login(dto: LoginDto, tenantSubdomain?: string) {
+        const subdomain = dto.subdomain ?? tenantSubdomain;
+        let storeId: string | null = null;
+
+        if (subdomain) {
+            const store = await this.storesService.getStorefrontBySubdomain(subdomain);
+            storeId = store.id!;
+        }
+
+        const user = await this.usersService.findByEmail(dto.email, true, storeId);
         if (!user) {
             throw new UnauthorizedException('Invalid email or password');
         }
@@ -189,6 +220,7 @@ export class AuthService {
             sub: user.id,
             email: user.email,
             role: roleName,
+            storeId: user.storeId ?? null,
         });
 
         return {
@@ -199,6 +231,7 @@ export class AuthService {
                 email: user.email,
                 role: roleName,
                 isEmailVerified: user.isEmailVerified,
+                storeId: user.storeId ?? null,
             },
             ...tokens,
         };

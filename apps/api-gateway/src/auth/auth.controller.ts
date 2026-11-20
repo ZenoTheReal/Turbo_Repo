@@ -47,10 +47,19 @@ export class AuthController {
 
     // 1. Register a new user (sends 6-digit OTP to email)
     @Post('register')
-    @ApiOperation({ summary: 'Register a new user (sends verification OTP to email)' })
+    @ApiOperation({ summary: 'Register a new user or store customer (sends verification OTP to email)' })
+    @ApiHeader({
+        name: 'x-tenant-slug',
+        required: false,
+        description: 'Storefront subdomain when registering a customer on a specific store',
+    })
     @ApiResponse({ status: 201, description: 'User registered; verification code sent' })
-    async register(@Body() dto: RegisterDto) {
-        return this.authService.register(dto);
+    async register(
+        @Req() req: Request,
+        @Body() dto: RegisterDto,
+    ) {
+        const tenantSubdomain = (req.headers['x-tenant-slug'] as string) || (req.headers['x-store-subdomain'] as string);
+        return this.authService.register(dto, tenantSubdomain);
     }
 
     // 2. Verify Email OTP & receive tokens
@@ -100,13 +109,19 @@ export class AuthController {
         required: false,
         description: 'Set to "mobile" to receive refreshToken in JSON body; browser requests default to httpOnly cookie',
     })
+    @ApiHeader({
+        name: 'x-tenant-slug',
+        required: false,
+        description: 'Storefront subdomain when logging in as a store customer',
+    })
     @ApiResponse({ status: 200, description: 'User logged in successfully' })
     async login(
         @Req() req: Request,
         @Body() dto: LoginDto,
         @Res({ passthrough: true }) res: Response,
     ) {
-        const result = await this.authService.login(dto);
+        const tenantSubdomain = (req.headers['x-tenant-slug'] as string) || (req.headers['x-store-subdomain'] as string);
+        const result = await this.authService.login(dto, tenantSubdomain);
         // Set HttpOnly cookie for Web
         res.cookie(COOKIE_NAME, result.refreshToken, REFRESH_COOKIE_OPTIONS);
 

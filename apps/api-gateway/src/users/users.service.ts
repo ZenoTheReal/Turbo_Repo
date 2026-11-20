@@ -34,11 +34,21 @@ export class UsersService {
     return this.userRepository.save(user);
   }
 
-  async findByEmail(email: string, includePassword = false): Promise<User | null> {
+  async findByEmail(
+    email: string,
+    includePassword = false,
+    storeId?: string | null,
+  ): Promise<User | null> {
     const query = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
-      .where('user.email = :email', { email });
+      .where('LOWER(user.email) = LOWER(:email)', { email: email.trim() });
+
+    if (storeId) {
+      query.andWhere('user.storeId = :storeId', { storeId });
+    } else if (storeId === null) {
+      query.andWhere('user.storeId IS NULL');
+    }
 
     if (includePassword) {
       query.addSelect('user.password');

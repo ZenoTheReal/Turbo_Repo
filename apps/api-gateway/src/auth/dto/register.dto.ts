@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, MinLength, IsEnum, IsOptional } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsNotEmpty, MinLength, IsEnum, IsOptional, IsString } from 'class-validator';
 import { UserRole } from '@repo/common';
 
 export class RegisterDto {
@@ -15,8 +15,21 @@ export class RegisterDto {
     @IsNotEmpty()
     name: string;
 
+    @ApiPropertyOptional({ example: '+1234567890' })
+    @IsOptional()
+    @IsString()
+    phoneNumber?: string;
+
     @ApiProperty({ enum: UserRole, example: UserRole.SELLER, required: false, default: UserRole.BUYER })
     @IsOptional()
     @IsEnum(UserRole)
     role?: UserRole;
+
+    @ApiPropertyOptional({
+        example: 'nike',
+        description: 'Storefront subdomain if registering as a buyer on a specific store',
+    })
+    @IsOptional()
+    @IsString()
+    subdomain?: string;
 }
