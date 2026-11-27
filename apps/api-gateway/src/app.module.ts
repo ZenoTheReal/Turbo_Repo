@@ -12,6 +12,10 @@ import { StoresModule } from './stores/stores.module.js';
 import { StripeModule } from './config/stripe/stripe.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { OrdersGatewayModule } from './orders/orders.module.js';
+import { BillingGatewayModule } from './billing/billing.module.js';
+import { FaqsModule } from './faqs/faqs.module.js';
+import { CmsModule } from './cms/cms.module.js';
+import { AdminStatsModule } from './stats/admin-stats.module.js';
 
 @Module({
   imports: [
@@ -29,6 +33,10 @@ import { OrdersGatewayModule } from './orders/orders.module.js';
     StripeModule,
     CatalogModule,
     OrdersGatewayModule,
+    BillingGatewayModule,
+    FaqsModule,
+    CmsModule,
+    AdminStatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

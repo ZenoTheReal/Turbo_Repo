@@ -6,6 +6,8 @@ import { Role } from '../../users/schema/role.entity.js';
 import { Otp } from '../../auth/schema/otp.entity.js';
 import { PlatformSettings } from '../../settings/schema/platform-settings.entity.js';
 import { Store } from '../../stores/schema/store.entity.js';
+import { Faq } from '../../faqs/schema/faq.entity.js';
+import { CmsPage } from '../../cms/schema/cms-page.entity.js';
 
 @Injectable()
 export class Database implements OnModuleInit, OnModuleDestroy {
@@ -19,7 +21,7 @@ export class Database implements OnModuleInit, OnModuleDestroy {
       username: this.configService.get<string>('DATABASE_USER'),
       password: this.configService.get<string>('DATABASE_PASSWORD'),
       database: this.configService.get<string>('DATABASE_NAME', 'postgres'),
-      entities: [User, Role, Otp, PlatformSettings, Store],
+      entities: [User, Role, Otp, PlatformSettings, Store, Faq, CmsPage],
       synchronize: this.configService.get<string>('NODE_ENV') !== 'production',
       ssl: {
         rejectUnauthorized: false,

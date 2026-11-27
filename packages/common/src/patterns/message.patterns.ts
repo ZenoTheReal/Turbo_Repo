@@ -57,6 +57,25 @@ export const INVENTORY_PATTERNS = {
   DEDUCT: 'inventory.deduct',
 } as const;
 
+export const BILLING_PATTERNS = {
+  RECORD_ORDER_PAYMENT: 'billing.recordOrderPayment',
+  RECORD_ORDER_REFUND: 'billing.recordOrderRefund',
+  FIND_INVOICES: 'billing.findInvoices',
+  FIND_INVOICE_BY_ORDER: 'billing.findInvoiceByOrder',
+  FIND_STORE_LEDGER: 'billing.findStoreLedger',
+  GET_STORE_SUMMARY: 'billing.getStoreSummary',
+  GET_PLATFORM_SUMMARY: 'billing.getPlatformSummary',
+  REQUEST_PAYOUT: 'billing.requestPayout',
+  FIND_PAYOUTS: 'billing.findPayouts',
+  MARK_PAYOUT_PAID: 'billing.markPayoutPaid',
+} as const;
+
+export const BILLING_EVENTS = {
+  INVOICE_ISSUED: 'billing.event.invoice_issued',
+  PAYOUT_REQUESTED: 'billing.event.payout_requested',
+  PAYOUT_COMPLETED: 'billing.event.payout_completed',
+} as const;
+
 export const EMAIL_EVENTS = {
   SEND_WELCOME: 'email.send_welcome',
   SEND_SIGNUP_OTP: 'email.send_signup_otp',

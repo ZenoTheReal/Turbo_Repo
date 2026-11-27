@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   test: {
     globals: true,
-    root: './',
-    include: ['**/*.spec.ts'],
+    root: import.meta.dirname,
+    include: ['src/**/*.spec.ts'],
   },
 });

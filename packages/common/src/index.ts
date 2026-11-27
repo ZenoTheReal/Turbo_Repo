@@ -5,4 +5,5 @@ export * from './enums/otp.enum.js';
 export * from './enums/product-status.enum.js';
 export * from './enums/coupon.enum.js';
 export * from './enums/order-status.enum.js';
+export * from './enums/billing.enum.js';
 export * from './patterns/message.patterns.js';

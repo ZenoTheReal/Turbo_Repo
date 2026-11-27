@@ -10,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 import { SERVICES, ORDER_PATTERNS, OrderStatus, UserRole } from '@repo/common';
 import { StoresService } from '../stores/stores.service.js';
 import { StripeService } from '../config/stripe/stripe.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import type { CurrentUserPayload } from '../common/decorators/current-user.decorator.js';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class OrdersGatewayService {
     @Inject(SERVICES.ORDERS) private readonly ordersClient: ClientProxy,
     private readonly storesService: StoresService,
     private readonly stripeService: StripeService,
+    private readonly settingsService: SettingsService,
   ) {}
 
   async checkoutStorefront(
@@ -33,6 +35,13 @@ export class OrdersGatewayService {
     if (store.isOpen === false) {
       throw new BadRequestException(
         store.maintenanceNotice || 'This store is temporarily closed for maintenance.',
+      );
+    }
+
+    const settings = await this.settingsService.getSettings();
+    if (!settings.isStripeEnabled) {
+      throw new BadRequestException(
+        'Platform checkout payments are currently disabled by administrator.',
       );
     }
 
@@ -56,7 +65,16 @@ export class OrdersGatewayService {
       this.ordersClient.send(ORDER_PATTERNS.CREATE_CHECKOUT, orderPayload),
     );
 
-    // Step 2: Create Stripe Checkout Session
+    // Step 2: Calculate platform commission fee and create Stripe Checkout Session
+    const totalAmount = Number(order.totalAmount || 0);
+    const commissionFee =
+      (totalAmount * Number(settings.commissionRate || 0)) / 100 +
+      Number(settings.fixedFee || 0);
+    const applicationFeeCents = Math.min(
+      Math.round(totalAmount * 100),
+      Math.max(0, Math.round(commissionFee * 100)),
+    );
+
     const storeUrl = this.stripeService.resolveStoreUrl(store);
     const session = await this.stripeService.createCheckoutSession({
       mode: 'payment',
@@ -81,6 +99,7 @@ export class OrdersGatewayService {
         storeId: store.id,
       },
       payment_intent_data: {
+        ...(applicationFeeCents > 0 ? { application_fee_amount: applicationFeeCents } : {}),
         transfer_data: {
           destination: store.stripeAccountId,
         },

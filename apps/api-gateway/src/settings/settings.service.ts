@@ -13,6 +13,8 @@ export interface PublicPlatformInfo {
   logoUrl?: string;
   faviconUrl?: string;
   currency: string;
+  isStripeEnabled: boolean;
+  stripePublishableKey?: string;
 }
 
 @Injectable()
@@ -63,6 +65,8 @@ export class SettingsService {
       logoUrl: settings.logoUrl,
       faviconUrl: settings.faviconUrl,
       currency: settings.currency,
+      isStripeEnabled: settings.isStripeEnabled,
+      stripePublishableKey: settings.stripePublishableKey,
     };
   }
 

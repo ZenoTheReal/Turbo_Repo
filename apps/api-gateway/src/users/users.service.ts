@@ -116,7 +116,8 @@ export class UsersService {
 
     const qb = this.userRepository
       .createQueryBuilder('user')
-      .leftJoinAndSelect('user.role', 'role');
+      .leftJoinAndSelect('user.role', 'role')
+      .where('(role.name IS NULL OR role.name != :adminRole)', { adminRole: UserRole.ADMIN });
 
     // If includeDeleted is true, tell TypeORM to include soft-deleted records
     if (query.includeDeleted) {
@@ -215,6 +216,10 @@ export class UsersService {
     const user = await this.findById(id);
     if (!user) {
       throw new NotFoundException(`User with ID '${id}' not found`);
+    }
+
+    if (user.role?.name === UserRole.ADMIN) {
+      throw new BadRequestException('Administrator accounts cannot be deleted');
     }
 
     user.isDeleted = true;

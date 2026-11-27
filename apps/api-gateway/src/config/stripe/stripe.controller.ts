@@ -14,8 +14,9 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ClientProxy } from '@nestjs/microservices';
 import type { Request } from 'express';
 import { firstValueFrom } from 'rxjs';
-import { SERVICES, ORDER_PATTERNS } from '@repo/common';
+import { SERVICES, ORDER_PATTERNS, BILLING_PATTERNS } from '@repo/common';
 import { StripeService } from './stripe.service.js';
+import { SettingsService } from '../../settings/settings.service.js';
 import type Stripe from 'stripe';
 
 @ApiTags('Stripe')
@@ -25,7 +26,9 @@ export class StripeController {
 
   constructor(
     private readonly stripeService: StripeService,
+    private readonly settingsService: SettingsService,
     @Inject(SERVICES.ORDERS) private readonly ordersClient: ClientProxy,
+    @Inject(SERVICES.BILLING) private readonly billingClient: ClientProxy,
   ) {}
 
   @Post('webhook')
@@ -77,13 +80,41 @@ export class StripeController {
 
         if (orderId) {
           try {
-            await firstValueFrom(
+            const paidOrder = await firstValueFrom(
               this.ordersClient.send(ORDER_PATTERNS.MARK_PAID, {
                 orderId,
                 stripePaymentIntentId: paymentIntentId,
               }),
             );
             this.logger.log(`Checkout session ${session.id} completed. Order ${orderId} marked PAID.`);
+
+            if (paidOrder) {
+              try {
+                const settings = await this.settingsService.getSettings();
+                await firstValueFrom(
+                  this.billingClient.send(BILLING_PATTERNS.RECORD_ORDER_PAYMENT, {
+                    orderId: paidOrder.id,
+                    orderNumber: paidOrder.orderNumber,
+                    storeId: paidOrder.storeId,
+                    buyerId: paidOrder.buyerId ?? undefined,
+                    buyerEmail: paidOrder.buyerEmail,
+                    buyerName: paidOrder.buyerName,
+                    currency: paidOrder.currency,
+                    subtotal: Number(paidOrder.subtotal || 0),
+                    discountAmount: Number(paidOrder.discountAmount || 0),
+                    shippingAmount: Number(paidOrder.shippingAmount || 0),
+                    taxAmount: Number(paidOrder.taxAmount || 0),
+                    totalAmount: Number(paidOrder.totalAmount || 0),
+                    commissionRate: Number(settings.commissionRate || 0),
+                    fixedFee: Number(settings.fixedFee || 0),
+                    stripePaymentIntentId: paymentIntentId,
+                  }),
+                );
+                this.logger.log(`Billing invoice & ledger entries recorded for order ${paidOrder.orderNumber}.`);
+              } catch (billingErr: any) {
+                this.logger.error(`Failed to record billing for order ${orderId}: ${billingErr.message}`);
+              }
+            }
           } catch (err: any) {
             this.logger.error(`Failed to mark order ${orderId} as PAID: ${err.message}`);
           }

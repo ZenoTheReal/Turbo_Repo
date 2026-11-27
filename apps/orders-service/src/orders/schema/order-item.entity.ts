@@ -6,7 +6,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
-import { Order } from './order.entity.js';
+import type { Order } from './order.entity.js';
 
 @Entity('order_items')
 @Index('idx_order_items_order', ['orderId'])
@@ -18,7 +18,7 @@ export class OrderItem {
   @Column({ type: 'uuid' })
   orderId: string;
 
-  @ManyToOne(() => Order, (order) => order.items, { onDelete: 'CASCADE' })
+  @ManyToOne('Order', (order: Order) => order.items, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'orderId' })
   order: Order;
 

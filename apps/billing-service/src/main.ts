@@ -1,9 +1,12 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
 import { AppModule } from './app.module.js';
 
 async function bootstrap() {
-  const rmqUrl = process.env.RABBITMQ_URL || 'amqps://hhcnxsxj:IDl1Hsm1f5f4ONF7lEChCTO_HXYgxgyn@puffin.rmq2.cloudamqp.com/hhcnxsxj';
+  const rmqUrl =
+    process.env.RABBITMQ_URL ||
+    'amqps://hhcnxsxj:IDl1Hsm1f5f4ONF7lEChCTO_HXYgxgyn@puffin.rmq2.cloudamqp.com/hhcnxsxj';
   const exchange = process.env.RABBITMQ_EXCHANGE || 'ecommerce_exchange';
 
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
@@ -17,6 +20,13 @@ async function bootstrap() {
       wildcards: true,
     },
   });
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+    }),
+  );
 
   await app.listen();
   console.log('\x1b[36m💳 Billing Service connected to CloudAMQP (Topic: ecommerce_exchange)\x1b[0m');

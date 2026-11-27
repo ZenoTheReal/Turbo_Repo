@@ -42,7 +42,60 @@ export class StripeService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
+    await this.syncPlatformStripeDefaults();
     await this.initializeStripeWebhook();
+  }
+
+  /**
+   * Populates unset Stripe platform metadata (account ID, publishable key, enabled flag)
+   * into the PlatformSettings singleton row on startup without overwriting manual admin changes.
+   */
+  private async syncPlatformStripeDefaults(): Promise<void> {
+    const secretKey = this.configService.get<string>('STRIPE_SECRET_KEY');
+    if (!secretKey) return;
+
+    try {
+      let settings = await this.platformSettingsRepository.findOne({ where: { id: 1 } });
+      if (!settings) {
+        settings = this.platformSettingsRepository.create({
+          id: 1,
+          platformName: 'OmniStore',
+          currency: 'USD',
+          commissionRate: 0.0,
+          fixedFee: 0.0,
+          isStripeEnabled: true,
+        });
+      }
+
+      let dirty = false;
+
+      const envPubKey = this.configService.get<string>('STRIPE_PUBLISHABLE_KEY');
+      if (!settings.stripePublishableKey && envPubKey) {
+        settings.stripePublishableKey = envPubKey;
+        settings.isStripeEnabled = true;
+        dirty = true;
+      }
+
+      if (!settings.stripeAccountId) {
+        try {
+          const platformAccount = await this.client.accounts.retrieveCurrent();
+          if (platformAccount?.id) {
+            settings.stripeAccountId = platformAccount.id;
+            settings.isStripeEnabled = true;
+            dirty = true;
+          }
+        } catch (acctErr: any) {
+          this.logger.warn(`Could not auto-fetch platform Stripe account ID: ${acctErr.message}`);
+        }
+      }
+
+      if (dirty || !settings.updatedAt) {
+        await this.platformSettingsRepository.save(settings);
+        this.logger.log('Synced platform Stripe metadata defaults to database.');
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to sync platform Stripe defaults: ${err.message}`);
+    }
   }
 
   /**
